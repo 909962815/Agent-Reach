@@ -1,3 +1,4 @@
+# 中文注释：Boss 直聘原生后端子进程入口：只用公开的严格 CDP 接口。
 """Subprocess entry in the pinned Boss tool's interpreter; public strict-CDP API only."""
 import json
 import os
@@ -10,6 +11,7 @@ from pathlib import Path
 COMMIT = '4c991b77086a203173bf08a4cb64a23af6514fe6'
 
 
+# Boss 原生后端子进程入口：用固定工具的解释器跑公开 CDP 接口。
 def main():
     spec = json.loads(sys.argv[1])
     dist = distribution('boss-agent-cli')

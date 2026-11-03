@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# 中文注释：通用网页频道：Exa 搜索加 Jina Reader 读页面；是兜底频道，已有内置搜索的智能体不需要它。
 """Web — search (Exa) and read any page (Jina Reader, Exa fallback).
 
 This channel is a fallback: agents that already have working built-in web
@@ -37,6 +38,7 @@ _EXA_LIMIT_RE = re.compile(
 )
 
 
+# 内部：把 Exa 的错误转成统一错误。
 def _exa_error(text: str, rpc_code=None) -> ReachError:
     if rpc_code in (-32602, "-32602"):
         return ReachError(BAD_INPUT, f"Exa rejected the arguments: {text[:300]}")
@@ -48,6 +50,7 @@ def _exa_error(text: str, rpc_code=None) -> ReachError:
     return ReachError(UPSTREAM_BROKEN, f"Exa: {text[:300]}")
 
 
+# 内部：识别 Jina 或 Cloudflare 的人机验证页面。
 def _is_antibot_page(body: bytes) -> bool:
     """Recognize high-confidence Jina/Cloudflare challenge responses."""
     sample = body[:_ANTIBOT_SCAN_BYTES].decode("utf-8", errors="ignore").casefold()
@@ -67,6 +70,7 @@ def _is_antibot_page(body: bytes) -> bool:
     return (jina_captcha_warning and challenge_structure) or cloudflare_block
 
 
+# 内部：校验并规范化一个公开链接。
 def _public_url(target: str) -> str:
     try:
         return normalize_public_http_url(target)
@@ -74,6 +78,7 @@ def _public_url(target: str) -> str:
         raise ReachError(BAD_INPUT, "target must be a public http(s) URL") from None
 
 
+# 内部：调一次 Exa 免费托管工具并返回文本。
 def _exa_call(tool: str, arguments: dict, timeout: float) -> str:
     """Call one tool on Exa's free hosted MCP (no key) and return its text."""
     body = json.dumps(
@@ -104,6 +109,7 @@ def _exa_call(tool: str, arguments: dict, timeout: float) -> str:
     return text
 
 
+# 内部：把 Exa 的标题、链接、时间、作者分块解析成条目。
 def _parse_exa_text(text: str) -> list:
     """Split Exa's `Title: / URL: / Published: / Author:` blocks into items."""
     items = []
@@ -138,6 +144,7 @@ def _parse_exa_text(text: str) -> list:
     return items
 
 
+# 内部：解析 Jina Reader 返回的页面内容。
 def _parse_jina(url: str, body: str) -> dict:
     title = re.search(r"^Title:\s*(.*)$", body, re.M)
     published = re.search(r"^Published Time:\s*(.*)$", body, re.M)
@@ -150,6 +157,7 @@ def _parse_jina(url: str, body: str) -> dict:
     )
 
 
+# 通用网页频道：搜索和读任意页面，兜底用。
 class WebChannel(Channel):
     name = "web"
     description = "网页搜索与阅读（Agent 自带工具不可用时的保底）"

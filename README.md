@@ -1,4 +1,8 @@
+# Agent Reach · 中文说明
 
+这是什么：让 AI 智能体读写互联网的命令行工具。一条命令就能让智能体去读 X、Reddit、YouTube、GitHub、B站、小红书、雪球、V2EX、Boss 直聘等平台的内容（搜索、帖子、视频、播客转写等），以及登录墙后面的页面；没有浏览器也能用的公开查询会走通用网页频道兜底。
+
+下面是原项目说明（已带中文标题）。
 <h1 align="center">👁️ Agent Reach</h1>
 
 <p align="center">

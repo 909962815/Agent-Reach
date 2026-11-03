@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# 中文注释：Reddit 频道：浏览器操作补充公开搜索和阅读。
 """Reddit browser actions supplement public web search and reading.
 
 Public posts and some comments can be available through an agent's existing
@@ -17,6 +18,7 @@ _REDDIT_LOGIN_HINT = (
 )
 
 
+# 内部：取一个 Reddit 操作的后端调用入口。
 def _reddit(args, timeout: float) -> list:
     items = opencli_items(opencli_call("reddit", list(args), timeout=timeout, login_hint=_REDDIT_LOGIN_HINT))
     if not items:
@@ -24,6 +26,7 @@ def _reddit(args, timeout: float) -> list:
     return items
 
 
+# Reddit 频道：帖子和评论的浏览器操作，补充公开搜索。
 class RedditChannel(Channel):
     name = "reddit"
     description = "Reddit 帖子和评论"

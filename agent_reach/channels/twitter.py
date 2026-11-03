@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# 中文注释：X（Twitter）频道：通过共享浏览器里的 OpenCLI（实验性功能）。
 """Twitter/X — OpenCLI in the Agent Reach browser (experimental)."""
 
 from agent_reach.backends.opencli import opencli_call, opencli_items
@@ -12,6 +13,7 @@ _TWITTER_LOGIN_HINT = (
 )
 
 
+# 内部：取一个 X 操作的后端调用入口。
 def _x(args, timeout: float) -> list:
     items = opencli_items(opencli_call("twitter", list(args), timeout=timeout, login_hint=_TWITTER_LOGIN_HINT))
     if not items:
@@ -19,6 +21,7 @@ def _x(args, timeout: float) -> list:
     return items
 
 
+# X（Twitter）频道：搜索和帖子（实验性）。
 class TwitterChannel(Channel):
     name = "twitter"
     description = "Twitter/X 推文"

@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# 中文注释：OpenCLI 后端：在 Agent Reach 浏览器里运行 opencli 命令。
 """OpenCLI backend: run `opencli <site> ...` in the Agent Reach browser.
 
 OpenCLI (github.com/jackwener/opencli) drives Chrome through a browser-bridge
@@ -13,6 +14,7 @@ OPENCLI_EXTENSION_URL = (
 )
 
 
+# 内部：把 OpenCLI 的 YAML 错误块转成统一的 ReachError。
 def _opencli_error(text: str, login_hint: str):
     """Turn OpenCLI's YAML error block (printed even with -f json) into a ReachError.
 
@@ -56,6 +58,7 @@ def _opencli_error(text: str, login_hint: str):
     return ReachError(UPSTREAM_BROKEN, message, hint=upstream_hint)
 
 
+# 执行一次有界的 OpenCLI 命令，用明确已绑定的浏览器，不重试。
 def opencli_call(site: str, args, *, timeout: float, login_hint: str = ""):
     """One bounded command, using an explicit existing browser binding. No retry."""
     from agent_reach.runtime.browser_binding import environment
@@ -78,6 +81,7 @@ def opencli_call(site: str, args, *, timeout: float, login_hint: str = ""):
     return data
 
 
+# 把 OpenCLI 的结果行映射成统一条目，原始行保留在 raw 里。
 def opencli_items(rows) -> list:
     """Map OpenCLI result rows to unified items, keeping each row in `raw`."""
     from agent_reach.runtime.result import make_item, unix_to_iso
@@ -117,6 +121,7 @@ def opencli_items(rows) -> list:
     return items
 
 
+# 通过官方浏览器桥接口读取某个站点的 Cookie。
 def export_site_cookies(profile: str, domain: str) -> list:
     """Read one site's cookies through the official existing Browser Bridge API."""
     from pathlib import Path

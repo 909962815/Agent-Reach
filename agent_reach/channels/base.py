@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# 中文注释：频道基类：定义平台、动作、参数的统一结构，所有频道都继承它。
 """
 Channel base class.
 
@@ -16,6 +17,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
 
+# 统一动作的一个参数（名字、类型、说明等）。
 @dataclass(frozen=True)
 class Param:
     """One argument of a unified action."""
@@ -27,6 +29,7 @@ class Param:
     default: object = None
 
 
+# 统一动作（agent-reach <频道> <动作>），backends 按顺序列出可用的后端。
 @dataclass(frozen=True)
 class Action:
     """A unified action (`agent-reach <channel> <action>`).
@@ -49,6 +52,7 @@ class Action:
     public_web: Tuple[str, ...] = ()
 
 
+# 所有频道的基类：声明平台能处理哪些链接、有哪些动作。
 class Channel(ABC):
     """Base class for all channels."""
 

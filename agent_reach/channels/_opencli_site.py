@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# 中文注释：OpenCLI 站点的共享频道辅助：仅通过 OpenCLI 浏览器会话提供服务的平台共用这套逻辑。
 """Shared channel helper for OpenCLI browser-session-only platforms."""
 
 from agent_reach.backends.opencli import opencli_call, opencli_items
@@ -8,6 +9,7 @@ from agent_reach.utils.url import host_matches
 from .base import Channel
 
 
+# 仅通过 OpenCLI 浏览器会话提供服务的平台频道基类。
 class OpenCLISiteChannel(Channel):
     """A platform served only through OpenCLI in the Agent Reach browser."""
 

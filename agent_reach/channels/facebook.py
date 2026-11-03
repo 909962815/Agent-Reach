@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
+# 中文注释：Facebook 频道：通过共享浏览器里的 OpenCLI 搜索和查看主页。
 """Facebook search and profiles through OpenCLI in the shared Agent Reach browser."""
 
 from ._opencli_site import OpenCLISiteChannel
 from .base import Action, Param
 
 
+# Facebook 频道：搜索和主页。
 class FacebookChannel(OpenCLISiteChannel):
     name = "facebook"
     description = "Facebook 帖子、主页和群组"

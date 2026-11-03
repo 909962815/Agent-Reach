@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# 中文注释：Boss 直聘频道：走公开接口加已选定的 CDP 页面做搜索。
 """Boss search through the verified public API and an explicitly selected existing CDP page."""
 
 import json
@@ -22,6 +23,7 @@ from agent_reach.utils.url import host_matches
 from .base import Action, Channel, Param
 
 
+# Boss 直聘频道：职位搜索。
 class BossChannel(Channel):
     name = "boss"
     description = "Boss直聘 职位搜索与 JD"

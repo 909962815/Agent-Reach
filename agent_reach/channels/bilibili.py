@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# 中文注释：B站频道：bili-cli、OpenCLI、搜索接口多后端；yt-dlp 已移除（会被 B站风控拦截）。
 """Bilibili — multi-backend: bili-cli / OpenCLI / search API.
 
 yt-dlp was REMOVED from this channel (live-verified 2026-06): bilibili's
@@ -37,6 +38,7 @@ _BILI_LOGIN_HINT = (
 )
 
 
+# 内部：从 BV 号、视频链接或 b23.tv 短链里取出 BV 号。
 def _bvid(target: str, timeout: float) -> str:
     """BV id from a BV id, a video link, or a b23.tv short link."""
     t = str(target).strip()
@@ -53,6 +55,7 @@ def _bvid(target: str, timeout: float) -> str:
     raise ReachError(BAD_INPUT, "target must be a BV id or a bilibili.com / b23.tv video link")
 
 
+# 内部：跑 bili-cli 取 JSON，并把它的错误信封映射成统一错误码。
 def _bili_json(args: list, timeout: float) -> Any:
     """Run bili-cli with --json; map its error envelope to unified codes."""
     try:
@@ -82,6 +85,7 @@ def _bili_json(args: list, timeout: float) -> Any:
     return payload.get("data") or {}
 
 
+# 内部：用上游官方的凭据写入方式复用字幕登录，不启动浏览器、不读数据库。
 def _reuse_subtitle_login(timeout: float) -> None:
     """Use the official upstream credential writer; no browser launch or database read."""
     import os
@@ -112,6 +116,7 @@ def _reuse_subtitle_login(timeout: float) -> None:
         "source": source, "copied_cookies": len(jar), "at": state.now(), "verified": False, "source_changed": False}))
 
 
+# 内部：把 bili-cli 的视频结果转成统一条目。
 def _cli_video_item(v: dict, text=None) -> dict:
     owner = v.get("owner") or {}
     return make_item(
@@ -123,6 +128,7 @@ def _cli_video_item(v: dict, text=None) -> dict:
     )
 
 
+# 内部：把 B站接口的视频结果转成统一条目。
 def _api_video_item(v: dict, text=None) -> dict:
     return make_item(
         title=v.get("title"),
@@ -134,6 +140,7 @@ def _api_video_item(v: dict, text=None) -> dict:
     )
 
 
+# 内部：调一次 B站公开接口。
 def _bili_api(path: str, timeout: float) -> dict:
     body = http_request(
         f"https://api.bilibili.com{path}",
@@ -154,6 +161,7 @@ def _bili_api(path: str, timeout: float) -> dict:
 _UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
 
 
+# B站频道：视频、搜索、字幕等多后端实现。
 class BilibiliChannel(Channel):
     name = "bilibili"
     description = "B站视频、字幕和搜索"

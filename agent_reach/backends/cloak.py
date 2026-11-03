@@ -1,3 +1,4 @@
+# 中文注释：共享浏览器运行时的安装与定位；网站抓取逻辑在上游，不在这里。
 """Install/locate the shared browser runtime. Website extraction belongs upstream."""
 from __future__ import annotations
 
@@ -8,6 +9,7 @@ from pathlib import Path
 from agent_reach.runtime.result import NEED_SETUP, ReachError
 
 
+# 安装或定位共享浏览器运行时。
 def setup() -> dict:
     from agent_reach.runtime import state, tools
     from agent_reach.runtime.run import run_cmd

@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# 中文注释：GitHub 频道：优先用 gh 命令行，失败时回落 REST 接口，查仓库、Issue 和 PR。
 """GitHub — repositories, issues and PRs via gh CLI, falling back to the REST API."""
 
 from __future__ import annotations
@@ -39,6 +40,7 @@ _GH_READ_ONLY_ENV = {
 }
 
 
+# 内部：把 owner/repo、仓库链接或 Issue/PR 链接解析成（作者，仓库，编号）。
 def _parse_target(target: str):
     """owner/repo, a repo link, or an issue/PR link → (owner, repo, number|None)."""
     m = _TARGET_RE.match(str(target).strip())
@@ -48,6 +50,7 @@ def _parse_target(target: str):
     return owner, repo, int(number) if number else None
 
 
+# 内部：用 gh 命令行取一次数据。
 def _gh_get(path: str, timeout: float, accept: str = "application/vnd.github+json") -> bytes:
     try:
         out = run_cmd(
@@ -67,6 +70,7 @@ def _gh_get(path: str, timeout: float, accept: str = "application/vnd.github+jso
     return out.encode("utf-8")
 
 
+# 内部：用 REST 接口取一次数据（gh 不可用时回落）。
 def _api_get(path: str, timeout: float, accept: str = "application/vnd.github+json") -> bytes:
     headers = {"Accept": accept, "User-Agent": "agent-reach"}
     token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN")
@@ -88,6 +92,7 @@ def _api_get(path: str, timeout: float, accept: str = "application/vnd.github+js
         raise
 
 
+# 内部：把仓库数据转成统一条目。
 def _repo_item(repo: dict, readme: str | None = None) -> dict:
     return make_item(
         title=repo.get("full_name"),
@@ -104,6 +109,7 @@ def _repo_item(repo: dict, readme: str | None = None) -> dict:
     )
 
 
+# GitHub 频道：仓库、Issue、PR 查询。
 class GitHubChannel(Channel):
     name = "github"
     description = "GitHub 仓库和代码"

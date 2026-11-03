@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# 中文注释：小宇宙播客频道：通过 Groq Whisper 接口转写播客。
 """Xiaoyuzhou Podcast (小宇宙播客) — transcribe podcasts via Groq Whisper API."""
 
 import os
@@ -13,6 +14,7 @@ from .base import Action, Channel, Param
 _SCRIPT = os.path.join(os.path.dirname(os.path.dirname(__file__)), "scripts", "transcribe_xiaoyuzhou.sh")
 
 
+# 小宇宙播客频道：播客转写。
 class XiaoyuzhouChannel(Channel):
     name = "xiaoyuzhou"
     description = "小宇宙播客转文字"

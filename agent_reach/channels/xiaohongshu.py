@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# 中文注释：小红书频道：通过共享浏览器里的上游 OpenCLI。
 """XiaoHongShu through upstream OpenCLI in the Reach-owned browser."""
 
 from agent_reach.backends.opencli import opencli_call, opencli_items
@@ -12,6 +13,7 @@ _XHS_LOGIN_HINT = (
 )
 
 
+# 小红书频道：笔记搜索和内容。
 class XiaoHongShuChannel(Channel):
     name = "xiaohongshu"
     description = "小红书笔记"

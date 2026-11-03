@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
+# 中文注释：Instagram 频道：通过共享浏览器里的 OpenCLI 查用户、主页和帖子。
 """Instagram users, profiles and posts through OpenCLI in the shared Agent Reach browser."""
 
 from ._opencli_site import OpenCLISiteChannel
 from .base import Action, Param
 
 
+# Instagram 频道：用户、主页和帖子。
 class InstagramChannel(OpenCLISiteChannel):
     name = "instagram"
     description = "Instagram 用户、主页和指定用户帖子"

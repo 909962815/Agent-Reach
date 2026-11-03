@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# 中文注释：V2EX 频道：走公开接口查主题、节点、用户和回复。
 """V2EX — public API channel for topics, nodes, users, and replies."""
 
 import http.client
@@ -22,11 +23,13 @@ _MAX_RESPONSE_BYTES = 1024 * 1024
 _API_BASE = "https://www.v2ex.com"
 
 
+# 内部：拼 V2EX 链接，不让调用方的值改动查询参数。
 def _v2ex_url(path: str, **params: Any) -> str:
     """Build a V2EX URL without letting caller values alter its query."""
     return f"{_API_BASE}{path}?{urlencode(params)}"
 
 
+# 内部：只放行 V2EX 公开 HTTPS JSON 接口。
 def _validate_api_url(url: str) -> None:
     """Allow only the public V2EX HTTPS JSON API."""
     try:
@@ -45,6 +48,7 @@ def _validate_api_url(url: str) -> None:
         raise ValueError("only the V2EX HTTPS API is allowed")
 
 
+# 内部：用 Python 标准 HTTP 库取 JSON。
 def _get_json_with_urllib(url: str) -> Any:
     """Fetch JSON with Python's standard HTTP stack."""
     _validate_api_url(url)
@@ -56,6 +60,7 @@ def _get_json_with_urllib(url: str) -> Any:
     return json.loads(raw.decode("utf-8"))
 
 
+# 内部：判断异常链里是否包含可重试的 TLS 提前断开。
 def _is_unexpected_tls_eof(error: BaseException) -> bool:
     """Return whether an exception chain contains the retryable TLS EOF."""
     pending: list[BaseException] = [error]
@@ -84,6 +89,7 @@ def _is_unexpected_tls_eof(error: BaseException) -> bool:
     return False
 
 
+# 内部：用系统 curl 的 TLS 栈取有界 JSON。
 def _get_json_with_curl(url: str) -> Any:
     """Fetch bounded JSON with the OS curl TLS stack."""
     _validate_api_url(url)
@@ -127,6 +133,7 @@ def _get_json_with_curl(url: str) -> Any:
     return json.loads(result.stdout)
 
 
+# 内部：取 JSON，遇到 TLS 断开或截断响应时用 curl 重试一次。
 def _get_json(url: str) -> Any:
     """Fetch JSON, retrying TLS EOF or a truncated HTTP response once via native curl."""
     try:
@@ -142,6 +149,7 @@ def _get_json(url: str) -> Any:
 _TOPIC_URL_RE = re.compile(r"^(?:https?://)?(?:www\.)?v2ex\.com/t/(\d+)")
 
 
+# 内部：接受主题 ID 或主题链接，取出主题 ID。
 def _parse_topic_id(target: str) -> int:
     """Accept a topic id or a https://www.v2ex.com/t/<id> link."""
     t = str(target).strip()
@@ -153,6 +161,7 @@ def _parse_topic_id(target: str) -> int:
     raise ReachError(BAD_INPUT, "target must be a V2EX topic link (https://www.v2ex.com/t/<id>) or id")
 
 
+# 内部：把主题数据转成统一条目。
 def _topic_item(topic: dict, text: Any = None, raw: Any = None) -> dict:
     member = topic.get("member") or {}
     return make_item(
@@ -165,6 +174,7 @@ def _topic_item(topic: dict, text: Any = None, raw: Any = None) -> dict:
     )
 
 
+# V2EX 频道：主题、节点、用户和回复。
 class V2EXChannel(Channel):
     name = "v2ex"
     description = "V2EX 节点、主题与回复"

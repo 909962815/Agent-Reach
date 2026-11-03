@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# 中文注释：频道注册表：agent-reach <频道> <动作> 对应的全部平台都在这里登记。
 """
 Channel registry — every platform exposed by `agent-reach <channel> <action>`.
 """
@@ -39,6 +40,7 @@ ALL_CHANNELS: List[Channel] = [
 ]
 
 
+# 按名字取一个频道。
 def get_channel(name: str) -> Optional[Channel]:
     """Get a channel by name."""
     for ch in ALL_CHANNELS:
@@ -47,6 +49,7 @@ def get_channel(name: str) -> Optional[Channel]:
     return None
 
 
+# 取全部已注册频道。
 def get_all_channels() -> List[Channel]:
     """Get all registered channels."""
     return ALL_CHANNELS

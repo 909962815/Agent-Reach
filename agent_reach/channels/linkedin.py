@@ -1,3 +1,4 @@
+# 中文注释：LinkedIn 频道：通过上游 OpenCLI 和共享浏览器做求职相关操作。
 """LinkedIn job actions through upstream OpenCLI and the shared Reach browser."""
 import re
 from urllib.parse import urlsplit
@@ -9,6 +10,7 @@ from ._opencli_site import OpenCLISiteChannel
 from .base import Action, Param
 
 
+# LinkedIn 频道：求职相关操作。
 class LinkedInChannel(OpenCLISiteChannel):
     name = site = "linkedin"
     description = "LinkedIn 职位搜索与详情"
