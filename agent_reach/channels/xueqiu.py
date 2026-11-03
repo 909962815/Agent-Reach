@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# 中文注释：雪球频道：股票行情、搜索、热门帖子和热门股票。
 """Xueqiu (雪球) — stock quotes, search, trending posts & hot stocks."""
 
 import http.cookiejar
@@ -45,6 +46,7 @@ _opener = urllib.request.build_opener(
 _cookies_initialized = False
 
 
+# 内部：解析 name=value 形式的 Cookie 字符串并注入 Cookie 池。
 def _inject_cookie_string(cookie_str: str) -> None:
     """Parse a 'name=value; name2=value2' string and inject into the cookie jar."""
     for pair in cookie_str.split(";"):
@@ -73,6 +75,7 @@ def _inject_cookie_string(cookie_str: str) -> None:
         _cookie_jar.set_cookie(cookie)
 
 
+# 内部：尝试从 Agent Reach 配置文件里读雪球 Cookie。
 def _load_cookies_from_config(config=None) -> bool:
     """Try to load Xueqiu cookies from agent-reach config file (xueqiu_cookie key)."""
     try:
@@ -88,6 +91,7 @@ def _load_cookies_from_config(config=None) -> bool:
         return False
 
 
+# 内部：准备好会话 Cookie，不碰浏览器的凭据存储。
 def _ensure_cookies(config=None) -> None:
     """Populate session cookies without touching browser credential stores.
 
@@ -110,6 +114,7 @@ def _ensure_cookies(config=None) -> None:
     _cookies_initialized = True
 
 
+# 内部：带雪球会话 Cookie 取一次 JSON。
 def _get_json(url: str, config=None) -> Any:
     """Fetch *url* with Xueqiu session cookies and return parsed JSON."""
     _ensure_cookies(config)
@@ -120,6 +125,7 @@ def _get_json(url: str, config=None) -> Any:
         return json.loads(resp.read().decode("utf-8"))
 
 
+# 内部：去掉 HTML 标签并解码常见实体。
 def _strip_html(text: str) -> str:
     """Remove HTML tags and decode common entities."""
     text = re.sub(r"<[^>]+>", "", text)
@@ -128,6 +134,7 @@ def _strip_html(text: str) -> str:
     return text.strip()
 
 
+# 内部：把各种写法（SH600519、600519、HK00700 等）转成腾讯行情代码。
 def _tencent_code(symbol: str) -> str:
     """SH600519 / 600519 / HK00700 / 00700 / AAPL → Tencent quote code."""
     s = str(symbol).strip().upper()
@@ -145,6 +152,7 @@ def _tencent_code(symbol: str) -> str:
     raise ReachError(BAD_INPUT, "symbol must look like SH600519, 600519, 00700 or AAPL")
 
 
+# 内部：把腾讯市场加代码转成雪球链接和接口用的代码。
 def _xueqiu_symbol(market: str, code: str) -> str:
     """Tencent market + code → the symbol Xueqiu uses in URLs and its API."""
     market = market.lower()
@@ -155,6 +163,7 @@ def _xueqiu_symbol(market: str, code: str) -> str:
     return code.split(".")[0].upper()
 
 
+# 内部：把浏览器里复用的雪球会话同步进原生接口客户端。
 def _import_from_browser() -> bool:
     """Sync the reused Xueqiu site session into the existing native API client."""
     global _cookies_initialized
@@ -173,6 +182,7 @@ def _import_from_browser() -> bool:
     return True
 
 
+# 内部：准备好社区接口用的会话。
 def _prepare_community_session() -> None:
     from agent_reach.runtime import session_reuse
 
@@ -180,6 +190,7 @@ def _prepare_community_session() -> None:
     _import_from_browser()
 
 
+# 内部：调一次雪球接口并返回 JSON。
 def _xq_json(url: str) -> Any:
     try:
         return _get_json(url)
@@ -193,6 +204,7 @@ def _xq_json(url: str) -> Any:
         raise
 
 
+# 内部：从雪球接口响应里取出错误码。
 def _error_code(exc: urllib.error.HTTPError) -> str:
     try:
         return str(json.loads(exc.read().decode("utf-8")).get("error_code", ""))
@@ -206,6 +218,7 @@ _HOT_POSTS_URL = (
 )
 
 
+# 内部：解析热门帖子列表（每项的 data 字段是 JSON 编码的真实帖子）。
 def _parse_hot_posts(data: Any, limit: int) -> list:
     """Each list item carries a JSON-encoded `data` field with the real post."""
     results = []
@@ -230,6 +243,7 @@ def _parse_hot_posts(data: Any, limit: int) -> list:
     return results
 
 
+# 雪球频道：行情、搜索、热门帖子和热门股票。
 class XueqiuChannel(Channel):
     name = "xueqiu"
     description = "雪球股票行情与社区动态"

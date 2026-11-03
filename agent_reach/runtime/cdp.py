@@ -1,3 +1,4 @@
+# 中文注释：最小 Chrome DevTools 协议客户端：只连本机专用浏览器，绝不连用户自己的 Chrome。
 """Minimal Chrome DevTools Protocol client for the Agent Reach browser (127.0.0.1 only).
 
 Only used against the dedicated browser, never the user's own Chrome.
@@ -24,6 +25,7 @@ _GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 _TIMEOUT = 5
 
 
+# 内部：编码或解码一帧 JSON。
 def _json(path: str):
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))  # loopback: never proxy
     try:
@@ -33,6 +35,7 @@ def _json(path: str):
         return None
 
 
+# 内部：读一帧 CDP 消息。
 def _read_frame(sock: socket.socket, buf: bytes):
     while True:
         while len(buf) < 2:
@@ -62,6 +65,7 @@ def _read_frame(sock: socket.socket, buf: bytes):
             return payload, buf
 
 
+# 内部：发送一帧 CDP 消息。
 def _send(sock: socket.socket, text: str) -> None:
     payload = text.encode("utf-8")
     mask = os.urandom(4)
@@ -74,6 +78,7 @@ def _send(sock: socket.socket, text: str) -> None:
     sock.sendall(head + mask + bytes(b ^ mask[i % 4] for i, b in enumerate(payload)))
 
 
+# 执行一次浏览器级 CDP 调用；不可达时返回 None。
 def call(method: str, params: Optional[dict] = None, *, page: bool = False,
          target_id: Optional[str] = None) -> Optional[dict]:
     """One browser-level CDP call; returns `result` or None if unreachable."""
@@ -116,18 +121,21 @@ def call(method: str, params: Optional[dict] = None, *, page: bool = False,
     return None
 
 
+# 判断 Cookie 域是不是该域或它的真实子域。
 def domain_matches(cookie_domain: str, domain: str) -> bool:
     """`cookie_domain` is `domain` or one of its subdomains (".a.reddit.com" yes, "notreddit.com" no)."""
     c, d = cookie_domain.lstrip(".").lower(), domain.lstrip(".").lower()
     return c == d or c.endswith("." + d)
 
 
+# 返回专用浏览器里指定域（含子域）的 Cookie。
 def cookies(domain: str) -> List[dict]:
     """Cookies the dedicated browser holds for `domain` (and its subdomains)."""
     result = call("Storage.getCookies") or {}
     return [c for c in result.get("cookies", []) if domain_matches(c.get("domain", ""), domain)]
 
 
+# 返回扩展存在 chrome.storage.local 里的一段字符串，没有则返回 None。
 def extension_value(key: str) -> Optional[str]:
     """A string an extension saved in `chrome.storage.local` inside the dedicated browser, or None."""
     expr = f"chrome.storage.local.get({json.dumps(key)}).then(r => r[{json.dumps(key)}] || null)"
@@ -142,6 +150,7 @@ def extension_value(key: str) -> Optional[str]:
     return None
 
 
+# 走 --remote-debugging-pipe 的 CDP 连接：NUL 分隔的 JSON，写 wfd、读 rfd，另起读线程排空消息。
 class PipeConnection:
     """CDP over `--remote-debugging-pipe`: NUL-delimited JSON, we write `wfd`, read `rfd`.
 

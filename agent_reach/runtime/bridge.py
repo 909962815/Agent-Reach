@@ -1,3 +1,4 @@
+# 中文注释：官方 OpenCLI Bridge 管理：仅在专用浏览器打开期间受控运行，不改上游、不杀无关进程。
 """Official OpenCLI Bridge, supervised only while the dedicated browser is open.
 
 No upstream edits. Existing compatible user processes are borrowed, never killed.
@@ -16,6 +17,7 @@ from .result import NEED_SETUP, ReachError
 URL = "http://127.0.0.1:19825"
 
 
+# 返回 Bridge 的当前状态。
 def status() -> dict:
     request = urllib.request.Request(URL + "/status", headers={"X-OpenCLI": "1"})
     try:
@@ -27,6 +29,7 @@ def status() -> dict:
         return {}
 
 
+# 返回启动 Bridge 的规格（命令、环境等）。
 def launch_spec() -> tuple[list[str], str]:
     exe = tools.resolve("opencli")
     node = tools.resolve("node")
@@ -43,6 +46,7 @@ def launch_spec() -> tuple[list[str], str]:
     raise ReachError(NEED_SETUP, "Unsupported OpenCLI package layout; reinstall official OpenCLI")
 
 
+# 要求 Bridge 版本兼容：不让上游命令行自动重启无关的旧守护进程。
 def require_compatible() -> dict:
     """Do not let upstream CLI auto-restart an unrelated older daemon."""
     _, version = launch_spec()
@@ -53,6 +57,7 @@ def require_compatible() -> dict:
     return current
 
 
+# 要求 Bridge 在运行：区分“Bridge 不可用”和“该站点没有保存的 Cookie”。
 def require_running() -> dict:
     """Distinguish an unavailable Bridge from a site with no saved cookies."""
     current = require_compatible()
@@ -62,6 +67,7 @@ def require_running() -> dict:
     return current
 
 
+# 启动 Bridge，只在确实由 Reach 启动时才返回子进程句柄。
 def start():
     """Return a child handle only when Reach started this process."""
     argv, _ = launch_spec()
@@ -85,6 +91,7 @@ def start():
     raise ReachError(NEED_SETUP, "OpenCLI Bridge could not start alongside the dedicated browser")
 
 
+# 关闭 Bridge，只回收我们自己的子进程，且只针对专用浏览器。
 def close(proc) -> None:
     """Reap only our child, unconditionally bounded to the dedicated browser."""
     if proc is None:

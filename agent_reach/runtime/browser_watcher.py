@@ -1,3 +1,4 @@
+# 中文注释：浏览器的所有者与空闲看守进程：浏览器关闭后负责收尾。
 """Owner and idle watcher of the Agent Reach browser (`python -m agent_reach.runtime.browser_watcher`).
 
 Started detached by runtime.browser. Holds ~/.agent-reach/browser/watcher.lock
@@ -23,6 +24,7 @@ from urllib.parse import unquote, urlsplit
 from . import bridge, browser
 
 
+# 内部：用 CDP 管道启动 Chrome（fd 3 收命令，fd 4 回响应）。
 def _launch_with_pipe(chrome: str, url: str, *, headless: bool = True):
     """Start Chrome with the CDP pipe on its fds 3 (commands in) and 4 (replies out)."""
     if sys.platform == "win32":  # pragma: no cover
@@ -57,6 +59,7 @@ def _launch_with_pipe(chrome: str, url: str, *, headless: bool = True):
     return proc, PipeConnection(to_chrome_w, from_chrome_r)
 
 
+# 内部：加载扩展。
 def _load_extension(conn) -> None:
     ext = browser.extension_dir()
     if not (ext / "manifest.json").is_file():
@@ -70,6 +73,7 @@ def _load_extension(conn) -> None:
         print(f"Extensions.loadUnpacked failed: {reply.get('error')}", file=sys.stderr, flush=True)
 
 
+# 内部：用 SDK 的公开启动器启动 Cloak（一个持久配置，不设站点规则）。
 def _launch_cloak(url: str, *, headless: bool = True):
     """Use the SDK's public launcher; one persistent profile, no site rules."""
     from cloakbrowser import launch_persistent_context
@@ -96,6 +100,7 @@ def _launch_cloak(url: str, *, headless: bool = True):
     return ctx
 
 
+# 看守运行，直到浏览器消失；返回停止原因。
 def watch(idle: Optional[float] = None, poll: float = 2.0, *, launch: Optional[str] = None,
           chrome: Optional[str] = None, cloak: bool = False, headless: bool = True) -> str:
     """Run until the browser is gone. Returns why it stopped."""
@@ -177,6 +182,7 @@ def watch(idle: Optional[float] = None, poll: float = 2.0, *, launch: Optional[s
         os.close(fd)
 
 
+# 看守进程入口。
 def main() -> None:
     parser = argparse.ArgumentParser(prog="agent_reach.runtime.browser_watcher")
     parser.add_argument("--idle", type=float, default=None, help="seconds without use before closing")

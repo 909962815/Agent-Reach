@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# 中文注释：配置管理：读写 ~/.agent-reach/config.yaml；只读读取不创建文件，写操作有防符号链接等安全检查。
 """Configuration management for Agent Reach.
 
 Stores settings in ~/.agent-reach/config.yaml. Reads never create files or
@@ -25,18 +26,22 @@ from agent_reach.utils.paths import (
 _MAX_CONFIG_BYTES = 1024 * 1024
 
 
+# 配置错误基类：错误信息可安全展示给用户。
 class ConfigError(RuntimeError):
     """Base class for configuration errors safe to show to the user."""
 
 
+# 只读配置被尝试修改时抛出的错误。
 class ConfigReadOnlyError(ConfigError):
     """Raised when code tries to mutate an explicitly read-only config."""
 
 
+# 配置路径可能导致凭据被重定向读写时抛出的错误。
 class ConfigSecurityError(ConfigError):
     """Raised when a config path could redirect credential reads or writes."""
 
 
+# 内部：拒绝符号链接路径，防止凭据读写被劫持。
 def _reject_symlink(path: Path, label: str) -> None:
     try:
         ensure_no_symlink_path(path, label)
@@ -44,6 +49,7 @@ def _reject_symlink(path: Path, label: str) -> None:
         raise ConfigSecurityError(str(exc)) from exc
 
 
+# 内部：原子写入 YAML（先写临时文件再替换），文件仅属主可读写。
 def _atomic_write_yaml(target: Path, data: dict) -> None:
     """Atomically replace ``target`` with owner-only YAML.
 
@@ -97,6 +103,7 @@ def _atomic_write_yaml(target: Path, data: dict) -> None:
         raise
 
 
+# 配置管理类：读写 Agent Reach 的配置，区分只读和可写两种模式。
 class Config:
     """Manages Agent Reach configuration."""
 

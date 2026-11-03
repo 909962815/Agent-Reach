@@ -1,3 +1,4 @@
+# 中文注释：共享浏览器的运行环境和跨进程操作锁。
 """Shared owned-browser environment and cross-process action locks."""
 
 import hashlib
@@ -17,6 +18,7 @@ QUEUE_WAIT = 120.0
 _POLL = 0.2
 
 
+# 所有浏览器频道共用同一个 Reach 所有的目标配置。
 def profile_for(channel: str):
     """All browser channels use the same Reach-owned destination profile."""
     return "dedicated"
@@ -26,10 +28,12 @@ def profile_for(channel: str):
 
 
 
+# 返回浏览器绑定设置里的问题。
 def setup_problems(channel: str):
     return []  # add/first use prepare and reopen the owned browser automatically
 
 
+# 返回浏览器频道运行用的环境变量。
 def environment(channel: str):
     from . import browser, session_reuse
     session_reuse.prepare(channel)
@@ -48,6 +52,7 @@ def environment(channel: str):
 # polls until a deadline. Slots are N such locks; no daemon or stale-lock cleanup.
 
 
+# 返回执行操作用的锁。
 @contextmanager
 def execution_lock(profile: str):
     from agent_reach.utils.paths import ensure_no_symlink_path, make_private_dir
@@ -86,6 +91,7 @@ def execution_lock(profile: str):
                 fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
 
+# 内部：取多个锁名里第一个空闲的，全部被占则返回 None。
 def _try_any(names: List[str]) -> Optional[ExitStack]:
     """Hold the first free lock among `names`, or None if all are taken."""
     for name in names:
@@ -100,6 +106,7 @@ def _try_any(names: List[str]) -> Optional[ExitStack]:
     return None
 
 
+# 内部：等待多个锁里的任意一个。
 def _wait_any(names: List[str], wait: float, message: str) -> ExitStack:
     deadline = time.monotonic() + max(0.0, wait)
     while True:
@@ -113,6 +120,7 @@ def _wait_any(names: List[str], wait: float, message: str) -> ExitStack:
         time.sleep(_POLL)
 
 
+# 对指定锁加独占锁，最多等 wait 秒（默认排队等待时长）。
 @contextmanager
 def wait_lock(name: str, wait: Optional[float] = None) -> Iterator[None]:
     """Exclusive lock on `name`, waiting up to `wait` seconds (default QUEUE_WAIT)."""
@@ -120,10 +128,12 @@ def wait_lock(name: str, wait: Optional[float] = None) -> Iterator[None]:
         yield
 
 
+# 内部：浏览器查询的并发槽位。
 def _browser_slots() -> List[str]:
     return [f"browser:slot:{i}" for i in range(BROWSER_SLOTS)]
 
 
+# 为一次浏览器查询排队：每个站点最多固定槽位数，全局也有上限；等待时间计入动作超时。
 @contextmanager
 def query_slot(site: str, clock=None) -> Iterator[None]:
     """A place in line for one browser query: at most SITE_SLOTS per site, BROWSER_SLOTS overall.
@@ -143,6 +153,7 @@ def query_slot(site: str, clock=None) -> Iterator[None]:
         yield
 
 
+# 等运行中的查询结束并拦住新查询（用于登录窗口、重启、清站点）。
 @contextmanager
 def exclusive_browser() -> Iterator[None]:
     """Wait for running queries to finish and hold off new ones (login window, restart, clearing a site)."""

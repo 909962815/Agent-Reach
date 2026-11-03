@@ -1,3 +1,4 @@
+# 中文注释：专用浏览器管理：~/.agent-reach/browser/profile 下的共享浏览器，供全部浏览器频道使用。
 """The Agent Reach dedicated browser.
 
 One Reach-owned profile under ~/.agent-reach/browser/profile is shared by all
@@ -37,6 +38,7 @@ from agent_reach.utils.paths import (
 DEFAULT_CDP_PORT = 9222
 
 
+# 返回已配置的浏览器端口（默认 9222，9222 被占用时用配置值）。
 def configured_port() -> int:
     """Port from `agent-reach configure browser-port`, else 9222 (another tool may own 9222).
 
@@ -73,38 +75,47 @@ _EXTENSION_ASSET_RE = re.compile(r"^opencli-extension-.*\.zip$")
 _USER_AGENT = "agent-reach"
 
 
+# 返回专用浏览器的根目录。
 def browser_root() -> Path:
     return home_dir() / ".agent-reach" / "browser"
 
 
+# 返回共享浏览器配置文件夹。
 def profile_dir() -> Path:
     return browser_root() / "profile"
 
 
+# 返回浏览器扩展文件夹。
 def extension_dir() -> Path:
     return browser_root() / "extension"
 
 
+# 返回看守进程的日志路径。
 def watcher_log_path() -> Path:
     return browser_root() / "watcher.log"
 
 
+# 内部：浏览器状态文件的路径。
 def _state_path() -> Path:
     return browser_root() / "state.json"
 
 
+# 内部：上次使用时间记录文件的路径。
 def _last_used_path() -> Path:
     return browser_root() / "last_used"
 
 
+# 内部：启动锁文件的路径。
 def _start_lock_path() -> Path:
     return browser_root() / "start.lock"
 
 
+# 返回看守进程锁文件的路径。
 def watcher_lock_path() -> Path:
     return browser_root() / "watcher.lock"
 
 
+# 内部：读浏览器状态。
 def _load_state() -> dict:
     try:
         text = read_small_text_no_follow(_state_path(), max_bytes=64 * 1024)
@@ -116,6 +127,7 @@ def _load_state() -> dict:
         return {}
 
 
+# 内部：写浏览器状态。
 def _save_state(state: dict) -> None:
     from . import state as ledger
     make_private_dir(browser_root())
@@ -123,6 +135,7 @@ def _save_state(state: dict) -> None:
     atomic_write_private_text(_state_path(), json.dumps(state, indent=2))
 
 
+# 合并修改进浏览器状态（值为 None 表示删键）；先重读，因为别的进程也会写。
 def update_state(**changes) -> None:
     """Merge `changes` into the browser state (None deletes a key); re-reads first, other processes write too."""
     state = _load_state()
@@ -137,6 +150,7 @@ def update_state(**changes) -> None:
 # ── last use ──
 
 
+# 记录一次 Agent Reach 对浏览器的使用（重置空闲计时）。
 def touch() -> None:
     """Record an Agent Reach use of the browser (resets the idle timer)."""
     make_private_dir(browser_root())
@@ -147,6 +161,7 @@ def touch() -> None:
     os.utime(path)
 
 
+# 返回浏览器上次被使用的时间。
 def last_used() -> Optional[float]:
     try:
         return _last_used_path().stat().st_mtime
@@ -168,6 +183,7 @@ _ACTIVITY = """(() => {
 })()"""
 
 
+# 轮询可信的人工操作，并记住来源站点以便之后只登出该站点。
 def observe_activity() -> None:
     """Poll trusted human input and remember origins for later site-only logout."""
     from . import cdp
@@ -191,6 +207,7 @@ def observe_activity() -> None:
 # ── cross-process locks ──
 
 
+# 内部：打开一个锁文件。
 def _open_lock(path: Path) -> int:
     from . import state as ledger
     make_private_dir(path.parent)
@@ -199,6 +216,7 @@ def _open_lock(path: Path) -> int:
     return os.open(path, flags, 0o600)
 
 
+# 非阻塞地对文件 descriptor 加独占锁，拿不到就返回失败。
 def try_lock(fd: int) -> bool:
     """Take an exclusive lock on `fd` without blocking."""
     try:
@@ -215,6 +233,7 @@ def try_lock(fd: int) -> bool:
     return True
 
 
+# 内部：持有路径上的独占锁，超时后报 ReachError。
 @contextlib.contextmanager
 def _locked(path: Path, wait: float) -> Iterator[None]:
     """Hold an exclusive lock on `path`; ReachError after `wait` seconds."""
@@ -232,11 +251,13 @@ def _locked(path: Path, wait: float) -> Iterator[None]:
         os.close(fd)  # closing releases the lock
 
 
+# 串行化浏览器启动（和空闲关闭），跨进程互斥。
 def start_lock(wait: float = _LOCK_WAIT):
     """Serializes launching (and idle-closing) the browser across processes."""
     return _locked(_start_lock_path(), wait)
 
 
+# 返回看守进程是否在运行。
 def watcher_running() -> bool:
     fd = _open_lock(watcher_lock_path())
     try:
@@ -245,6 +266,7 @@ def watcher_running() -> bool:
         os.close(fd)
 
 
+# 等待某个条件成立，超时则返回失败。
 def wait_for(check: Callable[[], bool], seconds: float, interval: float = 1.0) -> bool:
     deadline = time.monotonic() + seconds
     while True:
@@ -258,6 +280,7 @@ def wait_for(check: Callable[[], bool], seconds: float, interval: float = 1.0) -
 # ── downloads ──
 
 
+# 内部：GET 一个链接（遵循系统和环境代理设置）。
 def _fetch(url: str, timeout: float = 30.0) -> bytes:
     """GET `url` (honours the OS / env proxy settings)."""
     req = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT})
@@ -265,12 +288,14 @@ def _fetch(url: str, timeout: float = 30.0) -> bytes:
         return resp.read()
 
 
+# 内部：下载一个文件。
 def _download(url: str, dest: Path, timeout: float = 60.0) -> None:
     req = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT})
     with urllib.request.urlopen(req, timeout=timeout) as resp, open(dest, "wb") as out:
         shutil.copyfileobj(resp, out, 1 << 20)
 
 
+# 内部：解压并保留符号链接和可执行权限（Chrome .app 里这两种很多）。
 def _unzip(archive: Path, dest: Path) -> None:
     """Extract keeping symlinks and exec bits (a Chrome .app is full of both)."""
     if platform.system() == "Darwin" and shutil.which("ditto"):
@@ -295,6 +320,7 @@ def _unzip(archive: Path, dest: Path) -> None:
 # ── Chrome ──
 
 
+# 内部：查找系统里装好的 Chrome。
 def _system_chrome() -> Optional[str]:
     system = platform.system()
     candidates: List[Optional[str]] = []
@@ -316,6 +342,7 @@ def _system_chrome() -> Optional[str]:
 
 
 
+# 离线查找 Chrome 可执行文件；绝不启动浏览器、不下载任何东西。
 def chrome_binary() -> Optional[str]:
     """Offline lookup; never starts a browser or downloads anything."""
     selected = _load_state().get("executable")
@@ -324,6 +351,7 @@ def chrome_binary() -> Optional[str]:
     return _system_chrome()
 
 
+# 准备好 CloakBrowser，实在没有时才回落到系统 Chrome。
 def ensure_chrome(*, retry_cloak: bool = False) -> str:
     """Prepare CloakBrowser, falling back only to an installed system Chrome."""
     from .result import NEED_SETUP, ReachError
@@ -347,11 +375,13 @@ def ensure_chrome(*, retry_cloak: bool = False) -> str:
     return installed["executable"]
 
 
+# 判断当前浏览器能不能加载扩展（Cloak 处处可加载，系统 Chrome 在 POSIX 上用管道加载）。
 def can_load_extension() -> bool:
     """Cloak loads extensions everywhere; system Chrome uses pipe loading on POSIX."""
     return _load_state().get("backend") == "cloakbrowser" or sys.platform != "win32"
 
 
+# 拼出启动 Chrome 的命令行参数。
 def chrome_argv(exe: str, url: str, *, pipe: bool, headless: bool = True) -> List[str]:
     argv = [
         exe,
@@ -374,6 +404,7 @@ def chrome_argv(exe: str, url: str, *, pipe: bool, headless: bool = True) -> Lis
 # ── OpenCLI extension ──
 
 
+# 返回已安装扩展的版本。
 def extension_version() -> Optional[str]:
     try:
         return json.loads((extension_dir() / "manifest.json").read_text("utf-8")).get("version")
@@ -381,6 +412,7 @@ def extension_version() -> Optional[str]:
         return None
 
 
+# 从 OpenCLI 最新发布里安装或更新扩展；GitHub 不可达时保留现有副本。
 def refresh_extension(*, upgrade: bool = False) -> dict:
     """Install or update the OpenCLI extension from the latest OpenCLI release.
 
@@ -438,12 +470,14 @@ def refresh_extension(*, upgrade: bool = False) -> dict:
 # ── process ──
 
 
+# 返回专用浏览器是否在运行。
 def is_running() -> bool:
     with socket.socket() as s:
         s.settimeout(1)
         return s.connect_ex(("127.0.0.1", CDP_PORT)) == 0
 
 
+# 内部：拼出分离启动子进程用的参数。
 def _detach_kwargs() -> dict:
     # Run from our own folder: `python -m` puts the cwd first on sys.path, so a stray
     # agent_reach/ folder where the user ran the command would shadow the installed package.
@@ -455,6 +489,7 @@ def _detach_kwargs() -> dict:
     return {"cwd": str(root), "start_new_session": True}
 
 
+# 启动专用浏览器；调用方必须已持有启动锁。
 def _launch(url: str, *, headless: bool = True) -> None:
     """Start the dedicated browser. Caller holds start_lock().
 
@@ -505,6 +540,7 @@ def _launch(url: str, *, headless: bool = True) -> None:
         raise ReachError(UPSTREAM_BROKEN, "the Agent Reach browser did not open" + (f": {tail}" if tail else ""))
 
 
+# 内部：Windows 上为已打开的浏览器启动分离的空闲看守进程（没有在跑时才启动）。
 def _spawn_watcher() -> None:
     """Windows: start the detached idle watcher for an already-open browser unless one runs."""
     if watcher_running():
@@ -517,6 +553,7 @@ def _spawn_watcher() -> None:
     wait_for(watcher_running, 5.0, interval=0.1)
 
 
+# 更换浏览器引擎时，保留旧 Chrome 配置以便恢复。
 def _prepare_shared_profile() -> None:
     """Keep the old Chrome profile recoverable when changing browser engines."""
     selected = _load_state()
@@ -541,18 +578,21 @@ def _prepare_shared_profile() -> None:
     update_state(profile_backend="cloakbrowser", profile_backup=str(backup))
 
 
+# 返回一个已打开但还没就绪的浏览器还能等多久。
 def _remaining_start_wait() -> float:
     """How long a browser that is open but not ready yet still gets."""
     started = _load_state().get("started_at") or 0.0
     return max(_RUNNING_GRACE, started + START_WAIT - time.time())
 
 
+# 内部：为重启而关闭浏览器。
 def _close_for_restart() -> None:
     from .result import UPSTREAM_BROKEN, ReachError
     if not stop() or not wait_for(lambda: not watcher_running(), 20.0, interval=0.1):
         raise ReachError(UPSTREAM_BROKEN, "Could not close the owned browser safely; saved profile retained")
 
 
+# 人工登录入口：用同一份已保存配置打开一个可见窗口。
 def start(url: str = "about:blank") -> None:
     """Explicit human login: show a window using the same saved profile."""
     touch()
@@ -566,6 +606,7 @@ def start(url: str = "about:blank") -> None:
         _launch(url, headless=False)
 
 
+# 准备或重新打开共享浏览器，并修复一次丢失的 Bridge 连接。
 def ensure_running(context: Optional[str] = None) -> None:
     """Prepare/reopen the shared browser; repair one lost Bridge connection."""
     from .clock import off_the_clock
@@ -607,6 +648,7 @@ def ensure_running(context: Optional[str] = None) -> None:
     touch()
 
 
+# 关闭专用浏览器：先 CDP 关闭，再终止进程；返回是否已关闭。
 def stop(timeout: float = 10.0) -> bool:
     """Close the dedicated browser: CDP Browser.close, then terminate. True if it is closed."""
     if not is_running():
@@ -626,6 +668,7 @@ def stop(timeout: float = 10.0) -> bool:
     return wait_for(lambda: not is_running(), 5.0, interval=0.2)
 
 
+# 在运行中的专用浏览器里打开一个新标签页。
 def open_url(url: str) -> None:
     """Open a new tab in the running dedicated browser."""
     _require_owned()
@@ -635,6 +678,7 @@ def open_url(url: str) -> None:
         pass
 
 
+# 内部：找出用我们配置目录启动的进程（Chrome 及其辅助进程）。
 def _profile_pids() -> List[int]:
     """Processes started with our --user-data-dir (Chrome and its helpers)."""
     if sys.platform == "win32":
@@ -652,6 +696,7 @@ def _profile_pids() -> List[int]:
     return pids
 
 
+# 内部：拒绝操作占用我们固定端口的无关浏览器。
 def _require_owned() -> None:
     """Do not navigate or close an unrelated browser occupying our fixed port."""
     if not watcher_running() and not _profile_pids():
@@ -662,12 +707,14 @@ def _require_owned() -> None:
                  f"`agent-reach configure browser-port <port>` (current {CDP_PORT}).")
 
 
+# 保存会话：快照读写和登出串行化，防止旧快照复活已登出的会话。
 def save_session() -> None:
     """Serialize snapshot reads/writes with logout so an old snapshot cannot revive it."""
     with _locked(browser_root() / "session.lock", wait=5.0):
         _save_session_unlocked()
 
 
+# 内部：不加锁的会话保存实现。
 def _save_session_unlocked() -> None:
     from . import cdp
     result = cdp.call("Storage.getCookies")
@@ -675,6 +722,7 @@ def _save_session_unlocked() -> None:
         atomic_write_private_text(browser_root() / "session.json", json.dumps(result))
 
 
+# 恢复已保存的会话。
 def restore_session() -> None:
     from . import cdp
     try:
@@ -698,12 +746,14 @@ def restore_session() -> None:
     update_state(restored_cookies=len(missing))
 
 
+# 清除指定站点的登录状态。
 def clear_site(domains: List[str]) -> int:
     from .browser_binding import exclusive_browser
     with exclusive_browser():
         return _clear_site(domains)
 
 
+# 内部：删除专用浏览器里指定域（含子域）的 Cookie，返回删了多少个；需要时先打开浏览器。
 def _clear_site(domains: List[str]) -> int:
     """Delete the dedicated browser's cookies for `domains` (and subdomains); returns how many.
 
@@ -717,6 +767,7 @@ def _clear_site(domains: List[str]) -> int:
         return _clear_running_site(domains)
 
 
+# 内部：清除运行中浏览器里指定站点的状态。
 def _clear_running_site(domains: List[str]) -> int:
     from . import cdp
     from .result import UPSTREAM_BROKEN, ReachError
@@ -761,6 +812,7 @@ def _clear_running_site(domains: List[str]) -> int:
     return sum((c.get("name"), c.get("domain"), c.get("path")) not in left for c in doomed)
 
 
+# 只删除已记录的浏览器产物，保留未知文件不动。
 def delete_profile() -> bool:
     """Remove recorded browser artifacts only, preserving unknown files."""
     from . import state as ledger
@@ -794,6 +846,7 @@ def delete_profile() -> bool:
 # ── OpenCLI binding ──
 
 
+# 返回当前已连接的 OpenCLI 浏览器桥配置。
 def connected_contexts() -> List[str]:
     """OpenCLI Browser Bridge profiles connected right now."""
     from . import bridge
@@ -802,6 +855,7 @@ def connected_contexts() -> List[str]:
     return [p["contextId"] for p in current.get("profiles", []) if p.get("extensionConnected")]
 
 
+# 返回已记录为专用浏览器的 OpenCLI 配置，没有则返回 None。
 def bound_context() -> Optional[str]:
     """The OpenCLI profile recorded as the dedicated browser, or None."""
     return _load_state().get("opencli_context") or None
@@ -811,6 +865,7 @@ def bound_context() -> Optional[str]:
 _CONTEXT_ID_KEY = "opencli_context_id_v1"
 
 
+# 从运行中专用浏览器自己的 CDP 端口读出它的 OpenCLI 配置 ID。
 def dedicated_context() -> Optional[str]:
     """The OpenCLI profile id saved inside the running dedicated browser, read over its own CDP port.
 
@@ -824,6 +879,7 @@ def dedicated_context() -> Optional[str]:
     return cdp.extension_value(_CONTEXT_ID_KEY)
 
 
+# 在扩展连通后，把专用浏览器的 OpenCLI 配置记录下来。
 def bind() -> dict:
     """Record the dedicated browser's OpenCLI profile once its extension is connected."""
     own = dedicated_context()
@@ -834,6 +890,7 @@ def bind() -> dict:
     return {"status": "waiting_for_extension"}
 
 
+# 把专用浏览器准备好：加载 OpenCLI 扩展并完成绑定，返回状态。
 def setup(*, retry_cloak: bool = False, headless: bool = True) -> dict:
     """Make the dedicated browser ready with the OpenCLI extension loaded and bound; returns status().
 
@@ -884,6 +941,7 @@ def setup(*, retry_cloak: bool = False, headless: bool = True) -> dict:
         return status()
 
 
+# 内部：从存储里恢复浏览器设置。
 def _setup_from_store() -> dict:
     from agent_reach.backends.opencli import OPENCLI_EXTENSION_URL
 
@@ -905,6 +963,7 @@ def _setup_from_store() -> dict:
     return status()
 
 
+# 返回专用浏览器的状态。
 def status() -> dict:
     ctx = bound_context()
     running = is_running()
@@ -929,6 +988,7 @@ def status() -> dict:
     }
 
 
+# 返回当前阻碍浏览器登录频道的问题（只做离线检查）。
 def setup_problems() -> List[str]:
     """What blocks browser-login channels right now (offline checks only).
 

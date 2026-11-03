@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# 中文注释：YouTube 频道：视频信息、搜索、字幕（yt-dlp）和 Whisper 转写。
 """YouTube — video info, search, subtitles (yt-dlp) and Whisper transcription."""
 
 import html
@@ -27,6 +28,7 @@ _TAG_RE = re.compile(r"<[^>]+>")
 _RAW_KEYS = ("id", "duration", "view_count", "like_count", "channel_id", "tags", "categories")
 
 
+# 内部：拼出调用 Agent Reach 自带 yt-dlp 的命令行参数。
 def _ytdlp_argv(*args: str) -> list:
     """Run the yt-dlp installed with Agent Reach (one of its dependencies)."""
     runtime = []
@@ -35,6 +37,7 @@ def _ytdlp_argv(*args: str) -> list:
     return [sys.executable, "-m", "yt_dlp", "--no-warnings", *runtime, *args]
 
 
+# 内部：规范化一个 YouTube 视频链接。
 def _video_url(target: str) -> str:
     from agent_reach.utils.url import host_matches
 
@@ -47,6 +50,7 @@ def _video_url(target: str) -> str:
     raise ReachError(BAD_INPUT, "target must be a YouTube link or 11-character video id")
 
 
+# 内部：跑一次 yt-dlp 并返回结果。
 def _run_ytdlp(args: list, timeout: float, cwd=None) -> str:
     try:
         return run_cmd(_ytdlp_argv(*args), timeout=timeout, cwd=cwd, label="yt-dlp")
@@ -65,11 +69,13 @@ def _run_ytdlp(args: list, timeout: float, cwd=None) -> str:
         raise
 
 
+# 内部：把日期转成 ISO 格式。
 def _iso_date(yyyymmdd) -> str:
     s = str(yyyymmdd or "")
     return f"{s[:4]}-{s[4:6]}-{s[6:8]}" if len(s) == 8 and s.isdigit() else ""
 
 
+# 把 WebVTT 字幕转成纯文本：去掉头、时间戳和标签，合并自动字幕的重复。
 def vtt_to_text(vtt: str) -> str:
     """Plain text from WebVTT: drop headers, timings, tags; collapse auto-caption repeats."""
     out: list[str] = []
@@ -89,6 +95,7 @@ def vtt_to_text(vtt: str) -> str:
     return "\n".join(out)
 
 
+# YouTube 频道：视频信息、搜索、字幕和转写。
 class YouTubeChannel(Channel):
     name = "youtube"
     description = "YouTube 视频和字幕"
