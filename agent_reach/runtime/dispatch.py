@@ -1,3 +1,4 @@
+# 中文注释：统一动作执行：校验参数、按顺序试后端、组装结果信封。
 """Run a unified action: validate params, try backends in order, build the envelope."""
 
 from __future__ import annotations
@@ -30,10 +31,12 @@ BACKEND_PAUSE_SECONDS = {TIMEOUT: 60, UPSTREAM_BROKEN: 120, NEED_SETUP: 60}
 RATE_LIMIT_SECONDS = 3600
 
 
+# 查找一个动作的定义。
 def find_action(channel: Channel, name: str) -> Optional[Action]:
     return next((a for a in channel.actions if a.name == name), None)
 
 
+# 内部：校验动作参数。
 def _validate(action: Action, params: Dict[str, Any]) -> Dict[str, Any]:
     if not isinstance(params, dict):
         raise ReachError(BAD_INPUT, "params must be an object")
@@ -64,6 +67,7 @@ def _validate(action: Action, params: Dict[str, Any]) -> Dict[str, Any]:
     return clean
 
 
+# 在安装工具或要求登录之前先校验动作。
 def validate_action(channel: Channel, action_name: str, params: Dict[str, Any], *,
                     timeout: float = DEFAULT_TIMEOUT) -> tuple[Action, dict]:
     """Validate before setup can install tools or request a login."""
@@ -80,6 +84,7 @@ def validate_action(channel: Channel, action_name: str, params: Dict[str, Any], 
     return action, clean
 
 
+# 内部：算一次调用的指纹（用于去重和限流）。
 def _fingerprint(channel: Channel) -> Optional[str]:
     from . import manage
 
@@ -90,6 +95,7 @@ def _fingerprint(channel: Channel) -> Optional[str]:
         return None
 
 
+# 已确认的平台限流对所有入口和后端都生效。
 def cooldown(channel: str) -> Optional[dict]:
     """A confirmed platform rate limit applies to every entry point and backend."""
     saved = state.load()
@@ -102,6 +108,7 @@ def cooldown(channel: str) -> Optional[dict]:
     return None
 
 
+# 让某个后端暂停一会（遇到限流时用）。
 def backend_pause(channel: Channel, action: str, backend: str) -> Optional[dict]:
     saved = state.load().get("backend_health", {}).get(channel.name, {}).get(action, {}).get(backend, {})
     if saved.get("fingerprint") != _fingerprint(channel):
@@ -114,6 +121,7 @@ def backend_pause(channel: Channel, action: str, backend: str) -> Optional[dict]
             "message": f"{backend} is temporarily paused after {saved['code']}; retry later"}
 
 
+# 内部：记录一次调用结果供后续判断。
 def _remember(channel: Channel, action: str, backend: str, error: Optional[ReachError]) -> None:
     signature, stamp = _fingerprint(channel), state.now()
 
@@ -130,6 +138,7 @@ def _remember(channel: Channel, action: str, backend: str, error: Optional[Reach
     state.mutate(change)
 
 
+# 内部：给浏览器操作做 pacing，避免请求过密。
 def _pace_browser(channel: str, action: str, clock: Clock) -> None:
     if action not in {"search", "jobs"}:
         return
@@ -146,6 +155,7 @@ def _pace_browser(channel: str, action: str, clock: Clock) -> None:
         state.mutate(lambda saved: saved.setdefault("request_starts", {}).__setitem__(channel, time.time()))
 
 
+# 内部：在截止时间前跑完函数；进程内 HTTP 调用无法中断，超时只能放弃等待。
 def _call_with_deadline(fn, params: Dict[str, Any], clock: Clock) -> List[dict]:
     """Run fn(timeout=..., **params); give up when the clock runs out.
 
@@ -179,6 +189,7 @@ def _call_with_deadline(fn, params: Dict[str, Any], clock: Clock) -> List[dict]:
     return list(box.get("items") or [])
 
 
+# 内部：挑最有用的失败原因：真实错误优先于“没安装”。
 def _pick_error(errors: List[ReachError]) -> ReachError:
     """Report the most useful failure: a real error beats 'not installed'."""
     for err in errors:
@@ -187,6 +198,7 @@ def _pick_error(errors: List[ReachError]) -> ReachError:
     return errors[0]
 
 
+# 内部：判断频道是否已添加；已添加的频道用自己的站点工具，未添加的才用公开搜索。
 def _channel_added(channel: Channel) -> bool:
     """An added channel answers from its own site tools; public web search is only for channels not set up yet."""
     from .manage import is_added
@@ -197,6 +209,7 @@ def _channel_added(channel: Channel) -> bool:
         return False
 
 
+# 执行一次统一动作并返回结果信封字典。
 def run_action(
     channel: Channel,
     action_name: str,

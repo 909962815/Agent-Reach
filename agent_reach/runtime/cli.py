@@ -1,3 +1,4 @@
+# 中文注释：统一命令行入口：频道动作、读链接、频道管理等全部命令的分发。
 """Unified entry for Agent Reach.
 
 Agent commands:      <channel> <action>, read <url>, channels
@@ -66,15 +67,18 @@ For the user:
 """
 
 
+# 返回命令行上开放的频道。
 def unified_channels() -> List[Channel]:
     """Channels exposed on the command line."""
     return get_all_channels()
 
 
+# 内部：按名字解析一个频道。
 def _channel(name: str) -> Optional[Channel]:
     return next((ch for ch in unified_channels() if ch.name == name), None)
 
 
+# 内部：跑一个管理函数并打印统一格式的 JSON 结果。
 def _mgmt(action: str, fn, *args, **kwargs) -> int:
     """Run a management function and print {schema_version, ok, action, result, error}."""
     try:
@@ -86,10 +90,12 @@ def _mgmt(action: str, fn, *args, **kwargs) -> int:
                   "result": result, "error": error})
 
 
+# 参数解析错误：抛异常而不是直接打印用法并退出。
 class _ArgError(Exception):
     pass
 
 
+# 参数解析器：解析失败时抛异常而不是退出进程。
 class _Parser(argparse.ArgumentParser):
     """argparse that raises instead of printing usage and exiting."""
 
@@ -101,6 +107,7 @@ class _Parser(argparse.ArgumentParser):
 _SHOW_NOTICE = True
 
 
+# 内部：输出一条结果。
 def _emit(payload: dict) -> int:
     if _SHOW_NOTICE:
         from .update_notice import notice
@@ -114,6 +121,7 @@ def _emit(payload: dict) -> int:
     return 0 if payload.get("ok") else 1
 
 
+# 内部：返回用法说明文本。
 def _usage(channel: Channel, action: Action) -> str:
     parts = ["agent-reach", channel.name, action.name]
     for p in action.params:
@@ -121,10 +129,12 @@ def _usage(channel: Channel, action: Action) -> str:
     return " ".join(parts)
 
 
+# 内部：处理非法输入并返回统一错误。
 def _bad_input(channel: Optional[str], action: Optional[str], message: str) -> int:
     return _emit(envelope(channel=channel, action=action, error=ReachError(BAD_INPUT, message)))
 
 
+# 内部：解析动作命令的参数。
 def _parse_action_args(action: Action, args: Sequence[str]) -> Dict[str, object]:
     parser = _Parser(prog=action.name, add_help=False)
     for p in action.params:
@@ -143,6 +153,7 @@ def _parse_action_args(action: Action, args: Sequence[str]) -> Dict[str, object]
     return ns
 
 
+# 内部：执行 <频道> <动作> 命令。
 def _cmd_action(channel: Channel, args: Sequence[str]) -> int:
     if not args or args[0].startswith("-"):
         valid = ", ".join(a.name for a in channel.actions)
@@ -160,6 +171,7 @@ def _cmd_action(channel: Channel, args: Sequence[str]) -> int:
     return _emit(run_action(channel, action.name, ns, timeout=timeout, only_backend=backend))
 
 
+# 内部：执行读链接命令。
 def _cmd_read(args: Sequence[str]) -> int:
     parser = _Parser(prog="read", add_help=False)
     parser.add_argument("url")
@@ -180,6 +192,7 @@ def _cmd_read(args: Sequence[str]) -> int:
     return _emit(run_action(target, "read", {"target": ns.url}, timeout=ns.timeout, only_backend=ns.backend))
 
 
+# 内部：执行频道列表命令。
 def _cmd_channels(_args: Sequence[str]) -> int:
     channels = []
     for ch in unified_channels():
@@ -224,6 +237,7 @@ def _cmd_channels(_args: Sequence[str]) -> int:
     )
 
 
+# 内部：执行检查命令（实测已添加频道）。
 def _cmd_check(args: Sequence[str]) -> int:
     from . import manage
 
@@ -252,6 +266,7 @@ def _cmd_check(args: Sequence[str]) -> int:
     return _emit({"schema_version": SCHEMA_VERSION, **out})
 
 
+# 内部：执行 doctor 命令（只看本地状态，不联网）。
 def _cmd_doctor(args: Sequence[str]) -> int:
     from . import manage
 
@@ -277,6 +292,7 @@ def _cmd_doctor(args: Sequence[str]) -> int:
     return 0
 
 
+# 内部：执行 skill 相关命令。
 def _cmd_skill(args: Sequence[str]) -> int:
     from . import manage
 
@@ -287,6 +303,7 @@ def _cmd_skill(args: Sequence[str]) -> int:
     return _mgmt("skill link", manage.link_skill, args[1])
 
 
+# 内部：分发管理类命令。
 def _cmd_management(head: str, args: Sequence[str]) -> int:
     from agent_reach import __version__
 
@@ -354,6 +371,7 @@ def _cmd_management(head: str, args: Sequence[str]) -> int:
     return _mgmt(head, lambda: {"version": __version__, "install_method": manage.install_method()})
 
 
+# 内部：用 configure proxy 保存的代理，除非 Shell 里已经设了代理。
 def _apply_saved_proxy() -> None:
     """Use the proxy saved by `configure proxy` unless the shell already sets one."""
     # Local browser/MCP endpoints must never be sent through the outbound proxy.
@@ -375,6 +393,7 @@ def _apply_saved_proxy() -> None:
         os.environ["HTTPS_PROXY"] = os.environ["HTTP_PROXY"] = str(proxy)
 
 
+# 内部：取登录相关的提示信息。
 def _login_info(ch: Channel):
     if ch.login_url:
         return {"via": "browser", "logged_in": None, "command": f"agent-reach login {ch.name}"}
@@ -383,6 +402,7 @@ def _login_info(ch: Channel):
     return None
 
 
+# 内部：对指定频道执行登录流程。
 def _login_channel(cmd: str, args: Sequence[str]):
     parser = _Parser(prog=cmd, add_help=False)
     parser.add_argument("channel")
@@ -401,6 +421,7 @@ def _login_channel(cmd: str, args: Sequence[str]):
     return ch, ns
 
 
+# 内部：执行登录命令。
 def _cmd_login(args: Sequence[str]) -> int:
     try:
         ch, ns = _login_channel("login", args)
@@ -462,6 +483,7 @@ def _cmd_login(args: Sequence[str]) -> int:
     return _emit(envelope(channel=ch.name, action="login", backend=ch.session, items=[{"logged_in": True}]))
 
 
+# 内部：执行登出命令。
 def _cmd_logout(args: Sequence[str]) -> int:
     try:
         ch, _ = _login_channel("logout", args)
@@ -497,6 +519,7 @@ def _cmd_logout(args: Sequence[str]) -> int:
     return _emit(envelope(channel=ch.name, action="logout", backend=ch.session or "config", items=[{"removed": removed}]))
 
 
+# 内部：执行浏览器相关命令。
 def _cmd_browser(args: Sequence[str]) -> int:
     parser = _Parser(prog="browser", add_help=False)
     parser.add_argument("op", choices=("setup", "status", "stop", "profiles", "use"))
@@ -528,6 +551,7 @@ def _cmd_browser(args: Sequence[str]) -> int:
         return _bad_input(None, "browser", str(exc))
 
 
+# 统一命令行主入口。
 def main(argv: Sequence[str]) -> int:
     global _SHOW_NOTICE
 

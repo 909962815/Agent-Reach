@@ -1,3 +1,4 @@
+# 中文注释：动作超时计时：浏览器冷启动等等待时间可暂停计时。
 """An action's --timeout budget that setup waits (browser cold start) can pause."""
 
 from __future__ import annotations
@@ -8,6 +9,7 @@ import time
 from typing import Iterator, Optional
 
 
+# 一次动作的剩余时间；暂停的时间在恢复时加回来。
 class Clock:
     """Seconds left for one action; paused time is added back on resume."""
 
@@ -42,11 +44,13 @@ class Clock:
 _current = threading.local()
 
 
+# 把 clock 设为当前线程正在跑的动作的时钟。
 def bind(clock: Clock) -> None:
     """Make `clock` the running action's clock in this thread."""
     _current.clock = clock
 
 
+# 里面的耗时不计入正在跑的动作的超时。
 @contextlib.contextmanager
 def off_the_clock() -> Iterator[None]:
     """Time spent inside does not count against the running action's --timeout."""

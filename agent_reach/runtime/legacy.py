@@ -1,3 +1,4 @@
+# 中文注释：老版本（1.5 及更早）清理：找到旧安装并只删除 Agent Reach 自身。
 """Old (1.5 and earlier) Agent Reach installs: find them and remove only Agent Reach itself.
 
 1.5 was installed with pipx or into `~/.agent-reach-venv`. After the user moves to
@@ -20,6 +21,7 @@ from agent_reach.utils.paths import home_dir
 _WIN = os.name == "nt"
 
 
+# 内部：pipx 存放程序的位置（随系统和 pipx 版本而异）。
 def _pipx_reported_venvs() -> str:
     """Where the installed pipx keeps its programs (it differs by OS and pipx version)."""
     pipx = shutil.which("pipx")
@@ -33,6 +35,7 @@ def _pipx_reported_venvs() -> str:
     return (getattr(out, "stdout", "") or "").strip() if getattr(out, "returncode", 1) == 0 else ""
 
 
+# 内部：列出 pipx 的虚拟环境。
 def _pipx_venvs() -> List[Path]:
     home = home_dir()
     local = os.environ.get("LOCALAPPDATA", "")
@@ -46,20 +49,24 @@ def _pipx_venvs() -> List[Path]:
     return [Path(d) / "agent-reach" for d in venv_dirs if d]
 
 
+# 内部：判断某个环境里有没有 Agent Reach。
 def _has_agent_reach(venv: Path) -> bool:
     lib = venv / "Lib" / "site-packages" if _WIN else None
     sites = [lib] if lib else sorted((venv / "lib").glob("python*/site-packages"))
     return any((s / "agent_reach").is_dir() for s in sites if s and s.is_dir())
 
 
+# 内部：取某个环境的 Python 解释器。
 def _python(venv: Path) -> Path:
     return venv / ("Scripts/python.exe" if _WIN else "bin/python")
 
 
+# 内部：判断是不是当前正在跑的这一份。
 def _current() -> Path:
     return Path(sys.prefix).resolve()
 
 
+# 找出除当前这份之外的旧版 Agent Reach。
 def find() -> List[Dict[str, str]]:
     """Old Agent Reach copies other than the one running now."""
     found: List[Dict[str, str]] = []
@@ -76,6 +83,7 @@ def find() -> List[Dict[str, str]]:
     return found
 
 
+# 内部：删除仍指向旧 pipx 环境的 agent-reach 启动垫片。
 def _drop_pipx_shims(venv: Path) -> None:
     """Remove `agent-reach` launchers that still point into the old pipx venv."""
     dirs = {os.environ.get("PIPX_BIN_DIR", ""), str(home_dir() / ".local" / "bin")}
@@ -88,6 +96,7 @@ def _drop_pipx_shims(venv: Path) -> None:
             pass
 
 
+# 内部：卸载旧版包。
 def _uninstall_package(venv: Path) -> bool:
     python = _python(venv)
     for cmd in ([str(python), "-m", "pip", "uninstall", "-y", "-q", "agent-reach"],
@@ -100,6 +109,7 @@ def _uninstall_package(venv: Path) -> bool:
     return False
 
 
+# 删除旧版 Agent Reach；pipx 环境只装了它所以整个删，~/.agent-reach-venv 可能还有别的东西要小心。
 def remove() -> Dict[str, List[Dict[str, str]]]:
     """Remove old Agent Reach copies. A pipx venv holds only Agent Reach, so it goes away;
     `~/.agent-reach-venv` may hold other packages, so only Agent Reach is uninstalled there."""
@@ -118,6 +128,7 @@ def remove() -> Dict[str, List[Dict[str, str]]]:
     return {"removed": removed, "failed": failed}
 
 
+# 返回手工清理旧版用的命令（自动删不掉时给用户看）。
 def manual_command(item: Dict[str, str]) -> str:
     if item["kind"] == "pipx":
         return "pipx uninstall agent-reach"

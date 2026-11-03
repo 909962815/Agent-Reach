@@ -1,3 +1,4 @@
+# 中文注释：管理命令实现：setup、add、remove、update、doctor、skill、uninstall、configure。
 """Management commands: setup, add, remove, update, doctor, skill, uninstall, configure.
 
 Each public function returns a plain dict `result` or raises ReachError; the CLI
@@ -31,12 +32,14 @@ CHECK_FRESH_SECONDS = 24 * 3600
 PREREQS = ("node", "uv", "ffmpeg", "chrome")
 
 
+# 内部：取频道注册信息。
 def _channels():
     from .cli import unified_channels
 
     return unified_channels()
 
 
+# 内部：按名字解析频道。
 def _channel(name: str):
     ch = next((c for c in _channels() if c.name == name), None)
     if ch is None:
@@ -45,6 +48,7 @@ def _channel(name: str):
     return ch
 
 
+# 判断频道是否已添加。
 def is_added(ch, data: Optional[dict] = None) -> bool:
     data = data or state.load()
     if ch.name in data["channels"]:
@@ -52,12 +56,14 @@ def is_added(ch, data: Optional[dict] = None) -> bool:
     return ch.level == "default" and ch.name not in data["removed_defaults"]
 
 
+# 内部：判断频道是否用浏览器。
 def _uses_browser(ch) -> bool:
     return bool(ch.login_url)
 
 
 
 
+# 同一版本的候选不能继承另一份构建的检查通过记录。
 @lru_cache(maxsize=1)
 def code_signature() -> str:
     """A candidate with the same version must not inherit another build's passes."""
@@ -70,6 +76,7 @@ def code_signature() -> str:
     return digest.hexdigest()[:16]
 
 
+# 构建、频道依赖、来源或网络变化时，检查记录随之失效。
 def fingerprint(channel: str) -> str:
     """Invalidate checks when this build, channel dependencies, source, or network changes."""
     from agent_reach.config import Config
@@ -88,6 +95,7 @@ def fingerprint(channel: str) -> str:
     return hashlib.sha256(json.dumps(value, sort_keys=True).encode()).hexdigest()[:16]
 
 
+# 让每个动作的证据相互独立，后面再检查某个动作时不受干扰。
 def fresh_actions(channel: str, check: Optional[dict]) -> dict[str, bool]:
     """Keep each action's evidence independent when another action is checked later."""
     if not check:
@@ -102,16 +110,19 @@ def fresh_actions(channel: str, check: Optional[dict]) -> dict[str, bool]:
                  or state.age_seconds(evidence[name].get("at")) < 3600)}
 
 
+# 重新做一次新鲜检查，不沿用旧证据。
 def fresh_check(channel: str, check: Optional[dict]) -> bool:
     return bool(fresh_actions(channel, check))
 
 
+# 返回 add 会为该频道安装的全部工具，前置依赖排在前面。
 def channel_tools(ch) -> List[str]:
     """Everything `add` installs for the channel, prerequisites first."""
     names = (["node", "opencli", "chrome"] if _uses_browser(ch) else []) + list(ch.prereqs) + list(ch.tools)
     return list(dict.fromkeys(names))
 
 
+# 返回该频道站点在 Agent Reach 浏览器里的 Cookie 域。
 def site_domains(ch) -> List[str]:
     """Cookie domains of the channel's site in the Agent Reach browser."""
     if getattr(ch, "domains", ()):
@@ -122,10 +133,12 @@ def site_domains(ch) -> List[str]:
     return [host] if host else []
 
 
+# 内部：判断频道是否有登录状态。
 def _has_login(ch) -> bool:
     return bool(ch.login_url or ch.login_argv or ch.logout_keys)
 
 
+# 登录页在浏览器里打开后，给用户的一句下一步提示。
 def browser_login_next(ch) -> str:
     """The single sentence for the user after the login page opened in the Agent Reach browser."""
     from agent_reach.channels.base import Channel
@@ -138,6 +151,7 @@ def browser_login_next(ch) -> str:
 
 # ── checks ──
 
+# 实测已添加的频道（或指定的几个），结果写进 state。
 def run_checks(names: Optional[List[str]] = None, timeout: float = 60.0, search_only: bool = False) -> dict:
     """Live-test the added channels (or the named ones); persist results in state."""
     from .dispatch import run_action
@@ -206,6 +220,7 @@ def run_checks(names: Optional[List[str]] = None, timeout: float = 60.0, search_
     return {"ok": bool(results) and all(by_action.values()), "scope": "search" if search_only else "all", "results": results}
 
 
+# 某个动作上次检查通过、这次失败，即判定为退化。
 def regressed(check: Optional[dict]) -> bool:
     """An action passed in the previous check and fails in the latest one."""
     if not check:
@@ -214,6 +229,7 @@ def regressed(check: Optional[dict]) -> bool:
     return any(previous.get(a) and not ok for a, ok in check.get("actions", {}).items())
 
 
+# 返回一个频道的当前状态。
 def channel_status(ch, data: dict) -> dict:
     if not is_added(ch, data):
         return {"status": "not_added", "problems": [], "hint": f"agent-reach add {ch.name}"}
@@ -243,6 +259,7 @@ def channel_status(ch, data: dict) -> dict:
     return {"status": "unverified", "problems": [], "hint": f"agent-reach check {ch.name}"}
 
 
+# 只看本地状态汇报每个频道的情况（不联网）；check 才是实测。
 def doctor() -> dict:
     """Status of every channel from local state only (no network); `check` runs the live tests."""
     data = state.load()
@@ -261,6 +278,7 @@ def doctor() -> dict:
 
 # ── add / remove ──
 
+# 内部：安装一个频道所需的工具。
 def _install_channel(ch, *, allow_upgrade: bool = False) -> List[dict]:
     installed = [tools.ensure(t, allow_upgrade=allow_upgrade) for t in channel_tools(ch)]
     if _uses_browser(ch):
@@ -272,11 +290,13 @@ def _install_channel(ch, *, allow_upgrade: bool = False) -> List[dict]:
     return installed
 
 
+# 内部：把结果拼成一句给用户看的话。
 def _sentence(text: str) -> str:
     text = text.strip()
     return text if text.endswith((".", "。")) else text + "."
 
 
+# 内部：工具已备好，是否需要登录由实际访问情况决定。
 def _next_step(ch) -> Optional[str]:
     """Tools are prepared; actual access decides whether login is needed."""
     if ch.login_url or ch.login_argv:
@@ -286,6 +306,7 @@ def _next_step(ch) -> Optional[str]:
     return " ".join(_sentence(p) for p in ch.setup_problems()) or None
 
 
+# 安装频道所需的一切（含前置依赖），添加频道，并说明已有会话的复用情况。
 def add(name: str, *, allow_upgrade: bool = False) -> dict:
     """Install whatever the channel needs (prerequisites included), add it, describe existing-session reuse."""
     ch = _channel(name)
@@ -304,6 +325,7 @@ def add(name: str, *, allow_upgrade: bool = False) -> dict:
             "capability_summary": capability_summary([ch], [current])}
 
 
+# 内部：算出频道所需的工具清单。
 def _needed_tools(data: dict) -> set:
     added = [c for c in _channels() if is_added(c, data)]
     needed = tools.closure(t for c in added for t in channel_tools(c))
@@ -312,11 +334,13 @@ def _needed_tools(data: dict) -> set:
     return needed
 
 
+# 内部：删除已没有任何添加频道使用的工具。
 def _prune(data: dict) -> List[str]:
     """Remove our tools no added channel uses."""
     return tools.prune(_needed_tools(data))
 
 
+# 删除一个频道（含默认频道），以及只有它在用的东西。
 def remove(name: str) -> dict:
     """Remove a channel (defaults too) and everything only it used."""
     from . import browser
@@ -367,16 +391,19 @@ def remove(name: str) -> dict:
 SKILL_NAME = "agent-reach"
 
 
+# 内部：OpenClaw 的家目录。
 def _openclaw_home() -> Path:
     oc = os.environ.get("OPENCLAW_HOME")
     return (Path(oc) if oc else home_dir()) / ".openclaw"
 
 
+# 内部：配置家目录。
 def _config_home() -> Path:
     xdg = os.environ.get("XDG_CONFIG_HOME")
     return Path(xdg) if xdg else home_dir() / ".config"
 
 
+# 需要建链接的 AI：名字对应（证明它已安装的配置文件夹，它的技能文件夹）。
 def linked_agents() -> Dict[str, tuple]:
     """AIs that need a link: name -> (config folder that proves it is installed, its skills folder)."""
     home = home_dir()
@@ -391,6 +418,7 @@ def linked_agents() -> Dict[str, tuple]:
     }
 
 
+# 自己读 ~/.agents/skills 的 AI：名字对应（配置文件夹，它自己的旧技能文件夹）。
 def native_agents() -> Dict[str, tuple]:
     """AIs that read ~/.agents/skills themselves: name -> (config folder, their own old skills folder)."""
     home = home_dir()
@@ -400,10 +428,12 @@ def native_agents() -> Dict[str, tuple]:
     }
 
 
+# 返回技能存放目录。
 def skill_dir() -> Path:
     return home_dir() / ".agents" / "skills" / SKILL_NAME
 
 
+# 内部：判断技能文档的语言。
 def _skill_lang() -> str:
     for var in ("AGENT_REACH_LANG", "LC_ALL", "LC_MESSAGES", "LANG"):
         v = os.environ.get(var, "").strip().lower()
@@ -412,6 +442,7 @@ def _skill_lang() -> str:
     return "zh"
 
 
+# 渲染技能文档内容。
 def render_skill(lang: Optional[str] = None) -> str:
     from importlib.resources import files
 
@@ -427,6 +458,7 @@ def render_skill(lang: Optional[str] = None) -> str:
     return template.replace("{{CHANNEL_TABLE}}", "\n".join(rows)).replace("{{VERSION}}", __version__)
 
 
+# 内部：判断是不是我们的一份真实技能副本（带 name: agent-reach 的 SKILL.md）。
 def _is_our_copy(path: Path) -> bool:
     """A real folder holding our SKILL.md (frontmatter `name: agent-reach`)."""
     if path.is_symlink() or not path.is_dir():
@@ -446,6 +478,7 @@ def _is_our_copy(path: Path) -> bool:
     return False
 
 
+# 内部：判断链接是否指向真实副本。
 def _links_to_real(path: Path) -> bool:
     if not path.is_symlink():
         return False
@@ -455,6 +488,7 @@ def _links_to_real(path: Path) -> bool:
         return False
 
 
+# 内部：删除一个技能链接或副本。
 def _remove(path: Path) -> None:
     if path.is_symlink() or path.is_file():
         path.unlink()
@@ -462,6 +496,7 @@ def _remove(path: Path) -> None:
         shutil.rmtree(path)
 
 
+# 内部：写一份真实技能副本。
 def _write_real_copy(text: str) -> Path:
     real = skill_dir()
     if (real / "SKILL.md").exists() and not _is_our_copy(real):
@@ -470,6 +505,7 @@ def _write_real_copy(text: str) -> Path:
     return real
 
 
+# 内部：写一份技能副本。
 def _write_copy(target: Path, text: str) -> None:
     from importlib.resources import files
 
@@ -488,6 +524,7 @@ def _write_copy(target: Path, text: str) -> None:
     state.mutate(lambda data: data["skill"].setdefault("files", {}).update({str(target): written}))
 
 
+# 内部：让 <技能目录>/agent-reach 指向真实副本；返回（类型，原因）。
 def _link_into(skills_dir: Path, text: str) -> tuple:
     """Make `<skills_dir>/agent-reach` point at the real copy.
 
@@ -514,10 +551,12 @@ def _link_into(skills_dir: Path, text: str) -> tuple:
         return "copy", None
 
 
+# 内部：按名字找对应的 AI 配置。
 def _agent_for(skills_dir: Path) -> str:
     return next((name for name, (_, d) in linked_agents().items() if d == skills_dir), "custom")
 
 
+# 写真实副本，给每个已检测到的 AI 建链接，并刷新已记录的链接和副本。
 def place_skill() -> dict:
     """Write the real copy, link every detected AI, refresh recorded links/copies."""
     text = render_skill()
@@ -543,6 +582,7 @@ def place_skill() -> dict:
     return {**skill_status(), "not_linked": not_linked, "removed_old_copies": []}
 
 
+# 返回技能的安装状态。
 def skill_status() -> dict:
     real = skill_dir()
     recorded = state.load()["skill"]["links"]
@@ -558,6 +598,7 @@ def skill_status() -> dict:
             "copies": [r["path"] for r in links if r["kind"] == "copy"]}
 
 
+# 把技能链接进一个不在表里的 AI 的技能文件夹。
 def link_skill(skills_dir: str) -> dict:
     """Link the skill into the skills folder of an AI that is not in the table."""
     target_dir = Path(skills_dir).expanduser()
@@ -583,6 +624,7 @@ def link_skill(skills_dir: str) -> dict:
     return skill_status()
 
 
+# 内部：卸载时只动已记录的文件和仍匹配的快捷方式，保留用户自己加的东西。
 def _skill_uninstall_targets() -> List[Path]:
     """Only recorded files and still-matching shortcuts; preserve user additions."""
     data = state.load()["skill"]
@@ -613,6 +655,7 @@ _LEGACY_COMMANDS = {"twitter": "twitter", "xhs": "xiaohongshu", "opencli": "xiao
 RETIRED_CHANNELS = ("rss", "exa_search")
 
 
+# 从旧版首次运行：建 state、保留凭据、推荐频道；结果保留在报告里。
 def migrate() -> dict:
     """First run after an older Agent Reach: create state, keep credentials, suggest channels.
 
@@ -639,6 +682,7 @@ def migrate() -> dict:
     return result
 
 
+# 内部：从 uv 安装里删掉 1.5 的旧副本（pipx 或 ~/.agent-reach-venv），防止它们遮挡新版。
 def _cleanup_old_copies() -> dict:
     """From the uv install, remove 1.5 copies (pipx / ~/.agent-reach-venv) so they cannot shadow it."""
     if install_method() != "uv":
@@ -647,18 +691,21 @@ def _cleanup_old_copies() -> dict:
     return legacy.remove()
 
 
+# 内部：旧副本相关的动作清单。
 def _old_copy_actions(old: dict) -> List[str]:
     from . import legacy
     return [f"An old Agent Reach copy could not be removed ({i['path']}); run `{legacy.manual_command(i)}`."
             for i in old["failed"]]
 
 
+# 内部：可选频道需要用户自己做的事；安装步骤是自动的。
 def _optional_entry(c) -> dict:
     """What the user must do for an optional channel; installs happen by themselves."""
     needs = (["login_if_required"] if (c.login_url or c.login_argv) else []) + ([c.needs_key] if c.needs_key else [])
     return {"channel": c.name, "level": c.level, "add": f"agent-reach add {c.name}", "needs": needs}
 
 
+# 添加默认频道（用户删掉的除外），并放置技能。
 def setup() -> dict:
     """Add the default channels (except ones the user removed) and place the skill."""
     if not state.exists() and (state.root() / "config.yaml").exists():
@@ -715,6 +762,7 @@ def setup() -> dict:
     return result
 
 
+# 内部：只读旧版台账，绝不改动别的程序的配置。
 def _retired_mcp_notice() -> list:
     """Read the old ledger only; never edit another application's configuration."""
     if state.load().get("mcp"):
@@ -724,6 +772,7 @@ def _retired_mcp_notice() -> list:
 
 # ── update ──
 
+# 联网查最新发布，同时刷新后台提醒缓存。
 def update_check() -> dict:
     """Live check of the latest release; also refreshes the background notice cache."""
     try:
@@ -742,6 +791,7 @@ def update_check() -> dict:
     }
 
 
+# 返回这份 Agent Reach 的安装方式：uv、editable 或其他。
 def install_method() -> str:
     """How this copy of Agent Reach was installed: uv | editable | other."""
     try:
@@ -757,10 +807,12 @@ def install_method() -> str:
     return "other"
 
 
+# 内部：判断安装来源。
 def _source(version: str) -> str:
     return f"https://github.com/{REPO}/archive/refs/tags/v{version}.zip"
 
 
+# 返回升级用的命令。
 def upgrade_command(version: str) -> List[str]:
     return ["uv", "tool", "install", "--force", _source(version)]
 
@@ -768,6 +820,7 @@ def upgrade_command(version: str) -> List[str]:
 UNINSTALL_PROGRAM = "uv tool uninstall agent-reach"
 
 
+# 内部：工具加它们各自的依赖，依赖在前，每个只出现一次。
 def _ordered_tools(names) -> List[str]:
     """Tools plus what they need, dependencies first, each once."""
     out: List[str] = []
@@ -784,6 +837,7 @@ def _ordered_tools(names) -> List[str]:
     return out
 
 
+# 把每个已添加频道的工具同步到最新允许版本，清理无用工具， drop 本版本不支持的频道。
 def sync() -> dict:
     """Bring every added channel's tools to their latest allowed version, prune unused
     tools, drop channels this version no longer has, refresh the skill.
@@ -831,6 +885,7 @@ def sync() -> dict:
             "old_copies": old_copies}
 
 
+# 内部：这份是 pip/pipx 装的 1.5 风格，改用 uv 装正式版，让新版自己完成设置。
 def _move_to_uv(info: dict) -> dict:
     """This copy was installed with pip/pipx (1.5 style). Install the release with uv, let the
     new copy set itself up (it removes known old copies), then remove this copy too."""
@@ -873,6 +928,7 @@ def _move_to_uv(info: dict) -> dict:
             "installation_report": result.get("installation_report"), "user_actions": actions}
 
 
+# 有新发布时升级 Agent Reach，再升级每个已添加频道的工具。
 def update(check_only: bool = False) -> dict:
     """Upgrade Agent Reach when a release is newer, then upgrade every added channel's tools."""
     info = update_check()
@@ -907,6 +963,7 @@ def update(check_only: bool = False) -> dict:
 # ── uninstall ──
 
 
+# 卸载 Agent Reach。
 def uninstall(dry_run: bool = False) -> dict:
     from . import browser
 
@@ -956,6 +1013,7 @@ CONFIG_KEYS = {"groq-key": "groq_api_key", "openai-key": "openai_api_key", "prox
 }
 
 
+# 修改配置项。
 def configure(key: str, value: str) -> dict:
     from agent_reach.config import Config
 

@@ -1,3 +1,4 @@
+# 中文注释：只读的会话发现和显式连接选择：绝不替用户登录。
 """Read-only session discovery and explicit connection choices. Never logs a user in."""
 import json
 import urllib.request
@@ -77,6 +78,7 @@ _STATUS_LABELS = {
 }
 
 
+# 内部：用安装机器自己的时钟和时区打招呼，不联网查询。
 def _local_greeting():
     """Use the installing computer's clock and timezone, without a network lookup."""
     hour = datetime.now().hour
@@ -90,6 +92,7 @@ def _local_greeting():
         return '晚上好，想搜点什么？'
     return '夜深了，想搜点什么？🌙'
 
+# 内部：只针对从 1.5 升级的用户：说明保留了什么、变了什么、还剩什么要做。
 def _upgrade_lines(result):
     """Only for users coming from 1.5: what was kept, what changed, what is left to do."""
     migration = result.get('migration')
@@ -113,6 +116,7 @@ def _upgrade_lines(result):
 
 
 
+# 渲染一份简短的安装收据；详细证据放在结构化摘要里。
 def installation_report(result):
     """Render one short receipt; keep detailed evidence in the structured summary."""
     def cell(value):
@@ -156,6 +160,7 @@ def installation_report(result):
 
 
 
+# 描述公开选项、已声明动作和本地证据，不做任何网络读写；管理命令提供状态记录。
 def capability_summary(channels, statuses):
     """Describe public options, declared actions and local evidence without any I/O.
 
@@ -198,11 +203,13 @@ def capability_summary(channels, statuses):
     }
 
 
+# 返回 CDP 连接地址。
 def cdp_url():
     from .browser import CDP_URL
     return validate_cdp(CDP_URL)
 
 
+# 校验一个 CDP 地址是否可用。
 def validate_cdp(value):
     try:
         u = urlsplit(value)
@@ -216,6 +223,7 @@ def validate_cdp(value):
     return value.rstrip('/')
 
 
+# 返回 CDP 连接状态。
 def cdp_status():
     url = cdp_url()
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
@@ -230,6 +238,7 @@ def cdp_status():
         return {'endpoint': url, 'connected': False, 'boss_tab_present': False}
 
 
+# 要求 Boss 直聘的 CDP 连接就绪。
 def require_boss_cdp():
     from . import browser, session_reuse
     session_reuse.prepare("boss")
