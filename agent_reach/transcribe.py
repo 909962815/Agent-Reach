@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# 中文注释：音频转写：用 Whisper 兼容接口转写音频，先用 yt-dlp 下载、ffmpeg 压缩分段，再调用转写服务。
 """Whisper audio transcription with explicit provider routing.
 
 Downloads audio (yt-dlp), compresses + chunks (ffmpeg), and posts to a
@@ -56,14 +57,17 @@ PROVIDERS = {
 }
 
 
+# 转写失败时抛出的错误。
 class TranscribeError(RuntimeError):
     """Raised when transcription cannot complete."""
 
 
+# 缺少必需的外部程序（如 ffmpeg）时抛出的错误。
 class MissingDependency(TranscribeError):
     """Raised when a required external binary is missing."""
 
 
+# 没有任何转写服务配好 API Key 时抛出的错误。
 class NoProviderConfigured(TranscribeError):
     """Raised when no provider has an API key configured."""
 
@@ -74,6 +78,7 @@ _BLOCKED_HOSTS = {
 }
 
 
+# 内部：优先用 Agent Reach 自己的程序副本，找不到再用系统 PATH 里的。
 def _bin(binary: str) -> str:
     """Our private copy (e.g. the ffmpeg `agent-reach add` installs) first, then PATH."""
     from agent_reach.runtime.tools import resolve
@@ -81,6 +86,7 @@ def _bin(binary: str) -> str:
     return resolve(binary) or binary
 
 
+# 内部：找不到必需程序时直接报错，不继续往下走。
 def _require(binary: str) -> None:
     from agent_reach.runtime.tools import resolve
 
@@ -88,6 +94,7 @@ def _require(binary: str) -> None:
         raise MissingDependency(f"{binary} not found (run `agent-reach add youtube`)")
 
 
+# 内部：文件超限时提前拒绝，避免后面做无用功。
 def _require_size_at_most(path: Path, limit: int, label: str) -> int:
     """Return file size or fail before expensive downstream processing."""
     size = path.stat().st_size
@@ -100,6 +107,7 @@ def _require_size_at_most(path: Path, limit: int, label: str) -> int:
 _DURATION_RE = re.compile(r"Duration:\s*(\d+):(\d{2}):(\d{2}(?:\.\d+)?)")
 
 
+# 内部：用 ffmpeg 读音频时长，超预算直接拒绝。
 def _probe_audio_duration(path: Path) -> float:
     """Return duration in seconds or fail closed before media generation.
 
@@ -138,6 +146,7 @@ def _probe_audio_duration(path: Path) -> float:
     return duration
 
 
+# 内部：音频太长、分段预算装不下时拒绝。
 def _require_duration_within_budget(path: Path) -> float:
     """Reject audio that cannot fit within the bounded chunk budget."""
     duration = _probe_audio_duration(path)
@@ -149,6 +158,7 @@ def _require_duration_within_budget(path: Path) -> float:
     return duration
 
 
+# 内部：跑一个子进程，非零退出或超时都转成转写错误。
 def _run(cmd: List[str], timeout: int = 600) -> None:
     """Run a subprocess, raising TranscribeError on nonzero exit or timeout.
 
@@ -171,6 +181,7 @@ def _run(cmd: List[str], timeout: int = 600) -> None:
         )
 
 
+# 内部：判断主机名是不是字面 IP 地址（是则返回该地址）。
 def _literal_ip(host: str):
     """Return the address a literal host denotes, or None for a real hostname.
 
@@ -192,6 +203,7 @@ def _literal_ip(host: str):
     return ipaddress.IPv4Address(packed)
 
 
+# 内部：判断是不是内网或保留 IP。
 def _is_private_ip(value: str) -> bool:
     ip = _literal_ip(value)
     if ip is None:
@@ -208,6 +220,7 @@ def _is_private_ip(value: str) -> bool:
     )
 
 
+# 内部：拒绝指向本地或内网的字面 URL，不解析公开主机的 DNS。
 def _assert_safe_public_url(url: str) -> None:
     """Reject literal local/internal URLs without DNS-resolving public hosts."""
     if "://" not in url:
@@ -244,6 +257,7 @@ def _assert_safe_public_url(url: str) -> None:
         raise TranscribeError("SSRF blocked: private/internal IP is not allowed")
 
 
+# 用 yt-dlp 把音频下载到指定目录，返回文件路径。
 def download_audio(url: str, out_dir: Path) -> Path:
     """Download audio with yt-dlp into out_dir; return the resulting file path."""
     _assert_safe_public_url(url)
@@ -281,6 +295,7 @@ def download_audio(url: str, out_dir: Path) -> Path:
     return audio
 
 
+# 把音频重编码为单声道 16kHz 32kbps 的 m4a，控制在 25MB 以内。
 def compress_audio(src: Path, out_dir: Path) -> Path:
     """Re-encode to mono / 16kHz / 32kbps m4a — keeps most content under 25MB."""
     _require("ffmpeg")
@@ -308,6 +323,7 @@ def compress_audio(src: Path, out_dir: Path) -> Path:
     return dst
 
 
+# 把音频切成多段，每段重新编码以便切点对齐关键帧。
 def chunk_audio(src: Path, out_dir: Path, segment_seconds: int = CHUNK_SECONDS) -> List[Path]:
     """Split src into segments. Re-encodes each segment so cuts align to keyframes."""
     if segment_seconds <= 0:
@@ -352,12 +368,14 @@ def chunk_audio(src: Path, out_dir: Path, segment_seconds: int = CHUNK_SECONDS) 
     return chunks
 
 
+# 内部：取指定转写服务的 API Key。
 def _provider_key(provider: str, config: Config) -> Optional[str]:
     field = PROVIDERS[provider]["key_field"]
     val = config.get(field)
     return val or None
 
 
+# 用指定服务转写其中一段音频，失败时抛出转写错误。
 def transcribe_chunk(
     chunk: Path,
     provider: str,
@@ -394,6 +412,7 @@ def transcribe_chunk(
     return resp.text
 
 
+# 内部：决定按什么顺序尝试各个转写服务。
 def _provider_order(provider: str) -> List[str]:
     if provider == "auto":
         return ["groq", "openai"]
@@ -402,6 +421,7 @@ def _provider_order(provider: str) -> List[str]:
     raise TranscribeError(f"unknown provider: {provider} (use groq|openai|auto)")
 
 
+# 转写一个链接或本地文件，返回拼接后的完整文本。
 def transcribe(
     source: str,
     *,
@@ -444,6 +464,7 @@ def transcribe(
         return _transcribe_in_dir(source, order, cfg, Path(tmp))
 
 
+# 内部：在指定目录里完成一次完整转写流程。
 def _transcribe_in_dir(source: str, order: List[str], cfg: Config, work_dir: Path) -> str:
     work_dir.mkdir(parents=True, exist_ok=True)
 
@@ -486,6 +507,7 @@ def _transcribe_in_dir(source: str, order: List[str], cfg: Config, work_dir: Pat
     return "\n".join(p for p in pieces if p)
 
 
+# 内部：按顺序逐个试转写服务，第一个成功的返回，全部失败则抛出最后一个错误。
 def _transcribe_with_fallback(chunk: Path, order: List[str], config: Config) -> str:
     """Try each provider in order; return first success or raise the last error."""
     last_err: Optional[Exception] = None

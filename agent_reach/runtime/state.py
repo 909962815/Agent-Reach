@@ -1,3 +1,4 @@
+# 中文注释：~/.agent-reach/state.json：记录已添加频道、装过的工具和上次检查结果。
 """~/.agent-reach/state.json: which channels are added, which tools we installed, last checks.
 
     {
@@ -35,18 +36,22 @@ STATE_VERSION = 1
 T = TypeVar("T")
 
 
+# 返回 state 的根目录。
 def root() -> Path:
     return home_dir() / ".agent-reach"
 
 
+# 返回 state.json 的路径。
 def state_path() -> Path:
     return root() / "state.json"
 
 
+# 判断 state 文件是否存在。
 def exists() -> bool:
     return state_path().is_file()
 
 
+# 读 state。
 def load() -> dict:
     try:
         text = read_small_text_no_follow(state_path(), max_bytes=1024 * 1024)
@@ -62,6 +67,7 @@ def load() -> dict:
     return data
 
 
+# 写 state。
 def save(data: dict) -> None:
     data.setdefault("owned_paths", {})["state.json"] = "state ledger"
     import hashlib
@@ -71,6 +77,7 @@ def save(data: dict) -> None:
     atomic_write_private_text(state_path(), json.dumps(data, indent=2, ensure_ascii=False))
 
 
+# 串行化短小的 state 读改写操作，跨 CLI 进程互斥。
 def mutate(change: Callable[[dict], T]) -> T:
     """Serialize short state read-modify-write operations across CLI processes."""
     from .browser_binding import execution_lock
@@ -90,10 +97,12 @@ def mutate(change: Callable[[dict], T]) -> T:
     raise ReachError("BUSY", "Reach state is being updated by another command")
 
 
+# 返回当前时间。
 def now() -> str:
     return _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+# 返回某个时间点到现在的秒数。
 def age_seconds(iso: str) -> float:
     try:
         then = _dt.datetime.strptime(iso, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=_dt.timezone.utc)
@@ -102,6 +111,7 @@ def age_seconds(iso: str) -> float:
     return (_dt.datetime.now(_dt.timezone.utc) - then).total_seconds()
 
 
+# 删除权限来自台账，绝不只凭文件名眼熟就删。
 def owned_path(path: Path, data: dict | None = None) -> bool:
     """Deletion permission comes from the ledger, never a familiar filename."""
     try:
@@ -111,6 +121,7 @@ def owned_path(path: Path, data: dict | None = None) -> bool:
     return relative in (data if data is not None else load()).get("owned_paths", {})
 
 
+# 记录一个由我们管理的路径进台账。
 def remember_path(path: Path, purpose: str) -> None:
     from agent_reach.utils.paths import ensure_no_symlink_path
 

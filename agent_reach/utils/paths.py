@@ -1,3 +1,4 @@
+# 中文注释：跨平台私有路径辅助：防符号链接、仅属主可读写。
 """Cross-platform private path helpers."""
 
 from __future__ import annotations
@@ -11,10 +12,12 @@ from contextlib import contextmanager
 from pathlib import Path
 
 
+# 私有路径操作失败时抛出的错误。
 class PrivatePathError(RuntimeError):
     """Raised when a private write could be redirected through a symlink."""
 
 
+# 创建一个仅属主可用的临时目录。
 @contextmanager
 def private_temporary_directory(prefix: str):
     """Create and clean only this call's recorded work directory under Reach."""
@@ -33,6 +36,7 @@ def private_temporary_directory(prefix: str):
             state.mutate(lambda data: data.get("owned_paths", {}).pop(relative, None))
 
 
+# 返回显式 HOME（含 Windows）；Windows 的 expanduser 会忽略 HOME，必须自己处理。
 def home_dir() -> Path:
     """Return the explicit HOME first, including on Windows.
 
@@ -50,6 +54,7 @@ def home_dir() -> Path:
     return Path.home()
 
 
+# 拒绝任何含符号链接成分的路径，不解析它。
 def ensure_no_symlink_path(path: str | Path, label: str = "路径") -> Path:
     """Reject any existing symlink component without resolving the path."""
     target = Path(path)
@@ -66,6 +71,7 @@ def ensure_no_symlink_path(path: str | Path, label: str = "路径") -> Path:
     return target
 
 
+# 创建一个在支持的系统上仅当前用户可访问的目录。
 def make_private_dir(path: str | Path) -> Path:
     """Create a directory restricted to the current user where supported."""
     target = ensure_no_symlink_path(path, "私密目录")
@@ -87,6 +93,7 @@ def make_private_dir(path: str | Path) -> Path:
     return target
 
 
+# 内部：os.replace；Windows 上对方进程占用目标时短暂重试。
 def _replace(src: Path, dst: Path) -> None:
     """os.replace; on Windows retry briefly while another process has `dst` open."""
     for attempt in range(20):
@@ -99,6 +106,7 @@ def _replace(src: Path, dst: Path) -> None:
             time.sleep(0.05)
 
 
+# 原子写私有文本文件且不跟随符号链接；父目录仅属主可读写，临时文件也一样。
 def atomic_write_private_text(
     path: str | Path,
     text: str,
@@ -167,6 +175,7 @@ def atomic_write_private_text(
     return target
 
 
+# 读一个有界的普通文件，拒绝任何符号链接成分。
 def read_small_text_no_follow(
     path: str | Path,
     *,

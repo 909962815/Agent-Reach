@@ -1,3 +1,4 @@
+# 中文注释：上游工具的登录状态：放在 ~/.agent-reach/sessions/<工具>/ 下面。
 """Login state for upstream tools, kept under ~/.agent-reach/sessions/<tool>/.
 
 Command-line tools store their login in the user's home directory. We run
@@ -15,10 +16,12 @@ from pathlib import Path
 from agent_reach.utils.paths import ensure_no_symlink_path, home_dir, make_private_dir
 
 
+# 返回全部工具会话的根目录。
 def sessions_root() -> Path:
     return home_dir() / ".agent-reach" / "sessions"
 
 
+# 返回某个工具的私有家目录（首次使用时创建）。
 def session_dir(tool: str) -> Path:
     """The tool's private home directory (created on first use)."""
     from . import state
@@ -31,12 +34,14 @@ def session_dir(tool: str) -> Path:
     return path
 
 
+# 返回让工具把登录存进 session_dir 的环境变量覆盖。
 def session_env(tool: str) -> dict:
     """Environment overrides that make `tool` store its login in session_dir()."""
     home = str(session_dir(tool))
     return {"HOME": home, "USERPROFILE": home}
 
 
+# 判断是否存在已保存的登录状态（含已知必需字段时一并检查）。
 def has_login_state(tool: str) -> bool:
     """Whether saved login state exists (including required fields when known)."""
     root = sessions_root() / tool
@@ -52,6 +57,7 @@ def has_login_state(tool: str) -> bool:
     return root.is_dir() and any(p.is_file() for p in root.rglob("*"))
 
 
+# 删除某个工具的会话目录；返回是否删掉了东西。
 def clear_session(tool: str) -> bool:
     """Delete the tool's session directory. Returns whether anything was removed."""
     root = sessions_root() / tool
@@ -63,6 +69,7 @@ def clear_session(tool: str) -> bool:
     return True
 
 
+# 把工具现有的登录从真实家目录复制进会话（需显式 opt-in）。
 def import_legacy_state(tool: str, names) -> list:
     """Copy the tool's existing login from the real home into its session (explicit opt-in)."""
     copied = []

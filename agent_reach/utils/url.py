@@ -1,3 +1,4 @@
+# 中文注释：URL 安全辅助：只放行明确的公开 HTTP(S) 地址。
 """Security helpers for untrusted URLs."""
 
 from __future__ import annotations
@@ -28,6 +29,7 @@ _BLOCKED_PUBLIC_FETCH_SUFFIXES = (
 )
 
 
+# 内部：解析规范和老式 IPv4 字面写法，不查 DNS。
 def _literal_ip_address(
     host: str,
 ) -> ipaddress.IPv4Address | ipaddress.IPv6Address | None:
@@ -44,6 +46,7 @@ def _literal_ip_address(
     return ipaddress.IPv4Address(packed)
 
 
+# 规范化一个 URL，或拒绝不是明确公开 HTTP(S) 的目标。
 def normalize_public_http_url(url: str) -> str:
     """Normalize a URL or reject targets that are not clearly public HTTP(S)."""
     candidate = str(url or "").strip()
@@ -84,6 +87,7 @@ def normalize_public_http_url(url: str) -> str:
     return parsed.geturl()
 
 
+# 判断主机名或 Cookie 域是不是该域或它的真实子域。
 def domain_matches(host: str, *domains: str) -> bool:
     """Match a hostname/cookie domain exactly or as a real subdomain."""
     normalized_host = str(host or "").lower().lstrip(".").rstrip(".")
@@ -96,6 +100,7 @@ def domain_matches(host: str, *domains: str) -> bool:
     return False
 
 
+# 判断 URL 的主机是不是允许的主机或其真实子域；只接受无用户信息的 HTTP(S) 链接。
 def host_matches(url: str, *domains: str) -> bool:
     """Return whether *url* has an exact allowed host or a real subdomain.
 

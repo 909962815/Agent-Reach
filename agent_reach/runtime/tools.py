@@ -1,3 +1,4 @@
+# 中文注释：上游工具和机器前置条件：在声明的版本安装和管理。
 """Upstream tools and machine prerequisites Agent Reach installs, at their declared versions.
 
 Tools with `tested` are installed at that version, and `update` keeps them there. Each tool may set `floor`
@@ -36,6 +37,7 @@ from .result import NEED_SETUP, TIMEOUT, UPSTREAM_BROKEN, ReachError, _clean
 OURS = "agent-reach"
 
 
+# 一个上游工具的声明：名字、版本要求、安装方式等。
 @dataclass(frozen=True)
 class Tool:
     name: str
@@ -74,32 +76,39 @@ _SAFE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 _WIN = sys.platform == "win32"
 
 
+# 返回工具根目录。
 def tools_root() -> Path:
     return state.root() / "tools"
 
 
+# 返回某个工具的目录。
 def tool_dir(name: str) -> Path:
     return tools_root() / name
 
 
+# 返回我们自己的 npm 全局前缀（不需要管理员权限）。
 def npm_global_dir() -> Path:
     """Prefix for singletons we install (`npm -g --prefix`): no admin rights needed."""
     return tools_root() / "npm-global"
 
 
+# 内部：取可执行文件名（含 Windows 后缀处理）。
 def _exe(name: str) -> str:
     return name + (".exe" if _WIN else "")
 
 
+# 内部：Node 的 bin 目录。
 def _node_bin_dir() -> Path:
     base = tool_dir("node") / "current"
     return base if _WIN else base / "bin"
 
 
+# 内部：npm 全局 bin 目录。
 def _npm_global_bin() -> Path:
     return npm_global_dir() if _WIN else npm_global_dir() / "bin"
 
 
+# 内部：我们自己的私有 bin 目录。
 def _private_bin(tool: Tool, command: str) -> Path:
     base = tool_dir(tool.name)
     if tool.kind == "pip":
@@ -113,12 +122,14 @@ def _private_bin(tool: Tool, command: str) -> Path:
     return base / command
 
 
+# 返回已存在的私有 bin 文件夹（node、npm 全局前缀、uv、ffmpeg）。
 def bin_dirs() -> List[Path]:
     """Private bin folders that exist (node, our npm -g prefix, uv, ffmpeg)."""
     dirs = [_node_bin_dir(), _npm_global_bin(), tool_dir("uv") / "bin", tool_dir("ffmpeg") / "bin"]
     return [d for d in dirs if d.is_dir()]
 
 
+# 把私有 bin 文件夹追加进 PATH（系统副本仍优先），让上游脚本找到 node、uvx、ffmpeg。
 def extend_path() -> None:
     """Append our private bin folders to PATH (system copies still win), so that
     upstream scripts find node/uvx/ffmpeg and children we start inherit them."""
@@ -128,6 +139,7 @@ def extend_path() -> None:
         os.environ["PATH"] = os.pathsep.join([p for p in parts if p] + extra)
 
 
+# 返回命令的绝对路径：先找我们自己的副本，再找用户 PATH 里的。
 def resolve(command: str) -> Optional[str]:
     """Absolute path for `command`: our private copy first, then the user's PATH."""
     tool = _BY_COMMAND.get(command)
@@ -142,10 +154,12 @@ def resolve(command: str) -> Optional[str]:
     return str(ours) if ours.exists() else None
 
 
+# 返回 ffmpeg 的路径。
 def ffmpeg_path() -> Optional[str]:
     return resolve("ffmpeg")
 
 
+# 判断工具现在是否可用（我们自己的或系统的都算）；离线判断。
 def present(name: str) -> bool:
     """Is the tool usable right now (ours or the system's)? Offline."""
     tool = TOOLS[name]
@@ -158,11 +172,13 @@ def present(name: str) -> bool:
 
 # ── versions ──
 
+# 内部：把版本号解析成可比较的元组。
 def _version_tuple(text: str) -> tuple:
     m = re.search(r"(\d+)\.(\d+)\.(\d+)", text or "")
     return tuple(int(x) for x in m.groups()) if m else ()
 
 
+# 判断某个版本是否在允许范围内。
 def allowed(tool: Tool, version: Optional[str]) -> bool:
     v = _version_tuple(version or "")
     if not v:
@@ -172,6 +188,7 @@ def allowed(tool: Tool, version: Optional[str]) -> bool:
     return not any(v == _version_tuple(x) for x in tool.exclude)
 
 
+# 返回安装规格：已知时用测试过的版本，否则用下限或排除范围。
 def install_spec(tool: Tool) -> str:
     """Tested version when known; otherwise the floor/exclude range."""
     if tool.tested:
@@ -192,10 +209,12 @@ def install_spec(tool: Tool) -> str:
     return tool.package if rng == ">=0.0.0" else f"{tool.package}@{rng}"
 
 
+# 内部：取发行包名字。
 def _dist_name(tool: Tool) -> str:
     return re.split(r"[\s@<>=!~\[;]", tool.package, maxsplit=1)[0]
 
 
+# 内部：取 pip 包的版本。
 def _pip_version(tool: Tool) -> Optional[str]:
     want = re.sub(r"[-_.]+", "_", _dist_name(tool)).lower()
     venv = tool_dir(tool.name) / "venv"
@@ -208,6 +227,7 @@ def _pip_version(tool: Tool) -> Optional[str]:
     return None
 
 
+# 内部：从本地前缀或全局前缀的 package.json 里取版本。
 def _npm_version(prefix: Path, package: str) -> Optional[str]:
     """Version from package.json under a local prefix (node_modules) or an -g prefix (lib/node_modules)."""
     for base in (prefix / "node_modules", prefix / "lib" / "node_modules"):
@@ -218,6 +238,7 @@ def _npm_version(prefix: Path, package: str) -> Optional[str]:
     return None
 
 
+# 内部：跑命令取版本。
 def _command_version(exe: Optional[str]) -> Optional[str]:
     if not exe:
         return None
@@ -229,11 +250,13 @@ def _command_version(exe: Optional[str]) -> Optional[str]:
     return m.group(0) if m else None
 
 
+# 返回 resolve 会用到的那个副本的版本（单例则看 PATH 里的是谁）。
 def installed_version(tool: Tool) -> Optional[str]:
     """Version of the copy `resolve` would use (singletons: whichever is on PATH)."""
     return _command_version(resolve(tool.commands[0]))
 
 
+# 内部：取我们私有副本的版本。
 def _private_version(tool: Tool) -> Optional[str]:
     if tool.kind in ("pip", "ffmpeg"):
         return _pip_version(tool)
@@ -244,6 +267,7 @@ def _private_version(tool: Tool) -> Optional[str]:
 
 # ── installing ──
 
+# 返回一份供下载用的代理环境；显式 Shell 代理优先。
 def install_env() -> dict:
     """One proxy environment for package and browser-binary downloads.
 
@@ -280,11 +304,13 @@ def install_env() -> dict:
     return env
 
 
+# 内部：兼容旧版私有辅助的环境变量处理。
 def _install_env() -> dict:
     """Compatibility for installers that used the private helper."""
     return install_env()
 
 
+# 内部：跑一个安装子命令。
 def _run(argv, timeout: float = 600, env: Optional[dict] = None, *, stage: str = "tool_install") -> str:
     run_env = _install_env()
     run_env.update(env or {})
@@ -303,6 +329,7 @@ def _run(argv, timeout: float = 600, env: Optional[dict] = None, *, stage: str =
     return proc.stdout
 
 
+# 内部：下载一个文件。
 def _download(url: str, dest: Path, timeout: float = 600) -> None:
     proxy = _install_env().get("HTTPS_PROXY")
     handlers = [urllib.request.ProxyHandler({"https": proxy, "http": proxy})] if proxy else []
@@ -315,6 +342,7 @@ def _download(url: str, dest: Path, timeout: float = 600) -> None:
         raise ReachError(UPSTREAM_BROKEN, _clean(f"download failed: {url}: {exc}")) from None
 
 
+# 内部：用 pip 安装。
 def _install_pip(tool: Tool) -> None:
     venv = tool_dir(tool.name) / "venv"
     venv.parent.mkdir(parents=True, exist_ok=True)
@@ -337,6 +365,7 @@ def _install_pip(tool: Tool) -> None:
             shutil.copy2(exe, link)
 
 
+# 内部：拼出 npm 命令。
 def _npm_cmd() -> str:
     npm = resolve("npm")
     if not npm:
@@ -344,6 +373,7 @@ def _npm_cmd() -> str:
     return npm
 
 
+# 内部：用 npm 安装。
 def _install_npm(tool: Tool, *, global_prefix: Optional[Path] = None, system_global: bool = False) -> None:
     npm = _npm_cmd()
     spec = install_spec(tool)
@@ -361,6 +391,7 @@ def _install_npm(tool: Tool, *, global_prefix: Optional[Path] = None, system_glo
         _run([npm, "install", "--prefix", str(prefix), "--no-fund", "--no-audit", *hooks, spec])
 
 
+# 内部：按 nodejs.org 的命名返回（系统，架构，压缩包后缀）。
 def _node_platform() -> Tuple[str, str, str]:
     """(os, arch, archive extension) in nodejs.org naming."""
     system = platform.system()
@@ -373,6 +404,7 @@ def _node_platform() -> Tuple[str, str, str]:
     return os_name, arch, "zip" if os_name == "win" else "tar.gz"
 
 
+# 内部：安装 Node。
 def _install_node(tool: Tool) -> None:
     import hashlib
     import tarfile
@@ -417,6 +449,7 @@ def _install_node(tool: Tool) -> None:
         shutil.move(str(out / stem), str(dest / "current"))
 
 
+# 内部：安装 uv。
 def _install_uv(tool: Tool) -> None:
     dest = tool_dir("uv") / "bin"
     env = {"UV_INSTALL_DIR": str(dest), "UV_NO_MODIFY_PATH": "1", "INSTALLER_NO_MODIFY_PATH": "1"}
@@ -438,6 +471,7 @@ def _install_uv(tool: Tool) -> None:
         raise ReachError(UPSTREAM_BROKEN, "the uv installer finished but uvx is missing")
 
 
+# 内部：安装或升级一个工具；单例用全局前缀。
 def _install(tool: Tool, *, global_: bool = False) -> None:
     """Install (or upgrade) one tool. Singletons: global_=True (our npm -g prefix)."""
     folder = npm_global_dir() if global_ else tool_dir(tool.name)
@@ -457,11 +491,13 @@ def _install(tool: Tool, *, global_: bool = False) -> None:
     extend_path()
 
 
+# 内部：就地升级用户自己的全局副本（需用户同意）。
 def _upgrade_user_singleton(tool: Tool) -> None:
     """Upgrade the user's own global copy in place (only with consent)."""
     _install_npm(tool, system_global=True)
 
 
+# 把工具记进 state.json（浏览器准备 Chrome for Testing 时也用）。
 def record(name: str, version: Optional[str], *, owner: str = OURS, scope: str = "private", **extra) -> dict:
     """Record a tool in state.json (also used by browser.ensure_chrome for Chrome for Testing)."""
     data = state.load()
@@ -471,6 +507,7 @@ def record(name: str, version: Optional[str], *, owner: str = OURS, scope: str =
     return {"tool": name, **entry}
 
 
+# 确保工具已按限制装好并记进 state；upgrade 表示重装私有副本。
 def ensure(name: str, *, allow_upgrade: bool = False, upgrade: bool = False) -> dict:
     """Make sure the tool is installed inside its limits; record it in state.
 
@@ -545,6 +582,7 @@ def ensure(name: str, *, allow_upgrade: bool = False, upgrade: bool = False) -> 
 
 # ── removing ──
 
+# 内部：卸载我们装的单例；不是我们的则返回 None。
 def _uninstall_global(name: str, entry: dict, dry_run: bool) -> Optional[str]:
     """Uninstall a singleton we installed. Returns a description, or None if not ours."""
     tool = TOOLS.get(name)
@@ -562,6 +600,7 @@ def _uninstall_global(name: str, entry: dict, dry_run: bool) -> Optional[str]:
     return desc
 
 
+# 删除我们的一次安装及记录；用户或系统的副本绝不碰。
 def remove_private(name: str) -> bool:
     """Delete one of our installs and its record. User/system copies are never touched."""
     data = state.load()
@@ -587,6 +626,7 @@ def remove_private(name: str) -> bool:
     return removed
 
 
+# 返回工具加它们各自的全部依赖。
 def closure(names: Iterable[str]) -> Set[str]:
     """The tools plus everything they need."""
     out: Set[str] = set()
@@ -599,6 +639,7 @@ def closure(names: Iterable[str]) -> Set[str]:
     return out
 
 
+# 删除 keep 之外的工具，并 drop 无频道使用的用户副本记录。
 def prune(keep: Set[str]) -> List[str]:
     """Remove our tools not in `keep` (and drop records of user copies no channel uses)."""
     removed = []
@@ -621,6 +662,7 @@ def prune(keep: Set[str]) -> List[str]:
     return removed
 
 
+# 返回我们装的全局单例，供卸载。
 def uninstall_global_owned(dry_run: bool) -> list:
     """Global singletons we installed (owner agent-reach); uninstall them."""
     out = []
@@ -631,6 +673,7 @@ def uninstall_global_owned(dry_run: bool) -> list:
     return out
 
 
+# 返回 state.json 里记录的每个工具及其已安装版本（给 doctor 用）。
 def recorded() -> List[dict]:
     """Every tool in state.json with its installed version (for doctor)."""
     return [{"tool": n, **e} for n, e in sorted(state.load()["tools"].items())]

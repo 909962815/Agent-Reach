@@ -1,3 +1,4 @@
+# 中文注释：公开优先查询：复用 Web 频道，不用浏览器、不做站点抓取规则。
 """Public-first queries reuse WebChannel; no browser or site extraction rules."""
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ BACKEND = "public-web"
 MAX_SECONDS = 20.0
 
 
+# 内部：判断输入是否在公开查询范围内。
 def _in_scope(url: str, scopes: tuple[str, ...]) -> bool:
     try:
         url = normalize_public_http_url(url)
@@ -27,6 +29,7 @@ def _in_scope(url: str, scopes: tuple[str, ...]) -> bool:
     return False
 
 
+# 内部：拒绝空壳页面和明显的登录或验证页面，不拦正文里的登录链接。
 def _readable(item: dict) -> bool:
     """Reject empty shells and clear login/challenge pages, not inline login links.
 
@@ -45,6 +48,7 @@ def _readable(item: dict) -> bool:
     return re.fullmatch(login_only, text, re.I) is None
 
 
+# 返回一次有范围的 Web 查询结果；输入没有公开路线时返回 None。
 def attempt(channel: Channel, action: Action, params: dict, *, timeout: float) -> dict | None:
     """Return a scoped Web result, or None when this input has no public route."""
     if not action.public_web:

@@ -1,3 +1,4 @@
+# 中文注释：有界的上游调用：子进程和 HTTP 请求，带超时和大小上限。
 """Bounded calls to upstream tools: subprocesses and HTTP."""
 
 from __future__ import annotations
@@ -24,6 +25,7 @@ _NPM_SHIM_SCRIPT = re.compile(r'"%dp0%\\(?P<script>[^"\r\n]*?\.(?:cjs|mjs|js))"'
 _CMD_METACHARS = frozenset('&|<>^()%!"\r\n')
 
 
+# 内部：避免 cmd.exe 解析传给 Windows 批处理垫片的参数（npm 装的 .cmd 启动器也会中招）。
 def _windows_argv(exe: str, args: Sequence[str], *, node: Optional[str]) -> list[str]:
     """Avoid cmd.exe parsing arguments passed to Windows batch shims.
 
@@ -54,6 +56,7 @@ def _windows_argv(exe: str, args: Sequence[str], *, node: Optional[str]) -> list
     return [exe, *args]
 
 
+# 上游命令非零退出；频道可以用 stderr 重新映射它。
 class CommandFailed(ReachError):
     """Upstream exited non-zero. Channels may re-map it using `stderr`."""
 
@@ -63,6 +66,7 @@ class CommandFailed(ReachError):
         self.stdout = stdout
 
 
+# 跑一个上游命令并返回标准输出；默认从用户家目录运行，避免工具误读配置。
 def run_cmd(
     argv: Sequence[str],
     *,
@@ -147,6 +151,7 @@ def run_cmd(
     return stdout
 
 
+# GET（给了 data 就是 POST），带大小上限；错误交给 classify 处理。
 def http_request(
     url: str,
     *,

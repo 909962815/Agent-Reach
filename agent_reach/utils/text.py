@@ -1,3 +1,4 @@
+# 中文注释：文本辅助：脱敏 URL 里的凭据等敏感信息。
 """Text helpers."""
 
 from __future__ import annotations
@@ -20,6 +21,7 @@ _URL_QUERY_SECRET_RE = re.compile(
 )
 
 
+# 脱敏文本里 URL 的用户信息和敏感查询参数或片段值。
 def scrub_url_credentials(text: object) -> str:
     """Redact URL userinfo and sensitive query/fragment values from text."""
     scrubbed = _URL_CREDENTIALS_RE.sub(r"\1***@", str(text))

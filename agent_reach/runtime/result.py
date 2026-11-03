@@ -1,3 +1,4 @@
+# 中文注释：统一结果信封和错误码：每个命令只打印一个 JSON 对象。
 """Unified result envelope and error codes for the agent-facing entry point.
 
 Every unified command prints exactly one JSON object with this shape:
@@ -47,6 +48,7 @@ DEFAULT_HINTS = {
 _MAX_MESSAGE_CHARS = 500
 
 
+# 带统一错误码的失败；上游的原始信息和提示原样透传。
 class ReachError(Exception):
     """A failure with a unified code; upstream messages and hints are passed through unchanged."""
 
@@ -57,10 +59,12 @@ class ReachError(Exception):
         self.hint = hint
 
 
+# 内部：清理结果里的敏感或无用字段。
 def _clean(text: object) -> str:
     return scrub_url_credentials(str(text)).strip()[:_MAX_MESSAGE_CHARS]
 
 
+# 把后端抛出的任意异常映射成 ReachError。
 def classify(exc: BaseException) -> ReachError:
     """Map any exception raised by a backend to a ReachError."""
     if isinstance(exc, ReachError):
@@ -82,6 +86,7 @@ def classify(exc: BaseException) -> ReachError:
     return ReachError(UPSTREAM_BROKEN, f"{type(exc).__name__}: {_clean(exc)}")
 
 
+# 生成一个规范化条目；缺失字段为 null，raw 保留上游原始数据。
 def make_item(
     *,
     title: Optional[str] = None,
@@ -102,6 +107,7 @@ def make_item(
     }
 
 
+# 把 Unix 时间戳转成 ISO 8601 UTC，没有则返回 None。
 def unix_to_iso(value: Any) -> Optional[str]:
     """Convert a unix timestamp to ISO 8601 UTC, or None."""
     try:
@@ -113,6 +119,7 @@ def unix_to_iso(value: Any) -> Optional[str]:
     return _dt.datetime.fromtimestamp(seconds, _dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+# 组装统一输出对象。
 def envelope(
     *,
     channel: Optional[str],

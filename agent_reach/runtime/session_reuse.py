@@ -1,3 +1,4 @@
+# 中文注释：站点级本地会话复用：只读源浏览器，绝不克隆。
 """Site-scoped local session reuse. Source browsers are read-only and never cloned.
 
 The user removed the dedicated-only policy. Use existing connected browsers,
@@ -15,6 +16,7 @@ from .browser_binding import wait_lock
 from .result import NEED_SETUP, UPSTREAM_BROKEN, ReachError
 
 
+# 内部：取会话 Cookie。
 def _cookies(rows, domains) -> list:
     out = []
     for row in rows:
@@ -35,11 +37,13 @@ def _cookies(rows, domains) -> list:
     return out
 
 
+# 返回可复用的浏览器配置。
 def profiles() -> list:
     return [{"id": context, "dedicated": context == browser.bound_context()}
             for context in browser.connected_contexts()]
 
 
+# 复用一个已有的站点会话。
 def use(profile: str) -> dict:
     if profile == browser.bound_context() or profile not in browser.connected_contexts():
         raise ReachError(NEED_SETUP, "Choose a connected local browser profile from browser profiles")
@@ -51,6 +55,7 @@ def use(profile: str) -> dict:
     return {"source_profile": profile, "scope": "requested site only", "source_changed": False}
 
 
+# 内部：从源浏览器取 Cookie。
 def _source_cookies(channel: str, domains) -> tuple[list, str]:
     from agent_reach.backends.opencli import export_site_cookies
     try:
@@ -88,6 +93,7 @@ def _source_cookies(channel: str, domains) -> tuple[list, str]:
     return cookies, "saved-reach-session" if cookies else "saved-profile"
 
 
+# 复用已导入的站点会话直到显式刷新；访问权限另外单独验证。
 def prepare(channel: str, *, force: bool = False) -> dict:
     """Reuse an imported site session until explicitly refreshed; verify access separately."""
     from .manage import _channel, site_domains
